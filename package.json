@@ -1,0 +1,20 @@
+{
+  "name": "ai-translate-chrome-plugin",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "ant-design-vue": "^4.2.6",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.3",
+    "vite": "^6.3.5",
+    "vite-plugin-static-copy": "^2.3.1"
+  }
+}

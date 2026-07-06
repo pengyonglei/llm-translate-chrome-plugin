@@ -295,7 +295,7 @@ function checkSelection() {
 // ====== 悬浮设置按钮（可拖拽 + 贴边） ======
 
 const SNAP_THRESHOLD = 80
-const BTN_SIZE = 40
+const BTN_SIZE = 44
 const BTN_MARGIN = 4
 
 function injectSettingsButton() {
@@ -306,7 +306,7 @@ function injectSettingsButton() {
   settingsBtn.title = 'AI 翻译设置'
 
   const iconUrl = chrome.runtime.getURL('icons/icon48.png')
-  settingsBtn.innerHTML = `<img src="${iconUrl}" width="22" height="22" alt="AI 翻译">`
+  settingsBtn.innerHTML = `<img src="${iconUrl}" width="28" height="28" alt="AI 翻译">`
 
   // 默认位置（右下角），后面 restore 会覆盖
   settingsBtn.style.right = '20px'
@@ -580,6 +580,9 @@ async function loadTsConfig() {
     provider: 'deepseek', apiKey: '', baseUrl: '', model: '',
     targetLang: '中文', theme: 'system', disableThinking: true, triggerMode: 'click'
   })
+  // 先应用提供商默认值（disabled 状态、placeholder）
+  tsUpdatePlaceholders(cfg.provider)
+  // 再从 storage 覆盖（保留用户自定义的 API 地址、模型等）
   $('ts-provider').value = cfg.provider
   $('ts-apiKey').value = cfg.apiKey
   $('ts-baseUrl').value = cfg.baseUrl
@@ -588,7 +591,6 @@ async function loadTsConfig() {
   $('ts-theme').value = cfg.theme
   $('ts-disableThinking').checked = cfg.disableThinking
   $('ts-triggerMode').value = cfg.triggerMode
-  tsUpdatePlaceholders(cfg.provider)
   refreshTsPresets()
 }
 
@@ -636,7 +638,7 @@ function tsUpdatePlaceholders(provider) {
   }
   const d = defaults[provider] || defaults.openai
   $('ts-baseUrl').disabled = d.locked
-  $('ts-baseUrl').value = d.locked ? d.baseUrl : ($('ts-baseUrl').value || '')
+  $('ts-baseUrl').value = d.baseUrl
   $('ts-model').placeholder = d.model
 }
 
@@ -657,16 +659,26 @@ async function tsLoadPreset(name) {
   const presets = await chrome.storage.sync.get({ translationPresets: {} }).then(r => r.translationPresets)
   const p = presets[name]
   if (!p) return
-  $('ts-provider').value = p.provider || 'openai'
-  tsUpdatePlaceholders(p.provider || 'openai')
+
+  const PROVIDER_DEFAULTS = {
+    deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', locked: true },
+    bailian:  { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', locked: true },
+    openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', locked: false }
+  }
+
+  const provider = p.provider || 'openai'
+  const d = PROVIDER_DEFAULTS[provider] || PROVIDER_DEFAULTS.openai
+
+  $('ts-provider').value = provider
+  $('ts-baseUrl').disabled = d.locked
+  $('ts-baseUrl').value = d.locked ? d.baseUrl : (p.baseUrl || d.baseUrl)
+  $('ts-model').value = p.model || d.model
+  $('ts-model').placeholder = d.model
   $('ts-apiKey').value = p.apiKey || ''
-  $('ts-model').value = p.model || ''
   $('ts-targetLang').value = p.targetLang || '中文'
   $('ts-disableThinking').checked = p.disableThinking !== false
   if (p.triggerMode) $('ts-triggerMode').value = p.triggerMode
-  if (!PROVIDER_NAMES[p.provider] || PROVIDER_NAMES[p.provider] === 'OpenAI 兼容') {
-    $('ts-baseUrl').value = p.baseUrl || ''
-  }
+
   await tsSaveConfig()
   tsStatus(`已载入预设「${name}」`)
 }
