@@ -1,0 +1,591 @@
+:root {
+  --translate-bg: #ffffff;
+  --translate-text: #333333;
+  --translate-text-secondary: #888888;
+  --translate-border: #e0e0e0;
+  --translate-shadow: rgba(0, 0, 0, 0.12);
+  --translate-accent: #4a90d9;
+  --translate-hover: #f5f5f5;
+}
+
+.translate-container {
+  all: initial;
+  position: fixed;
+  z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--translate-text);
+}
+
+.translate-trigger {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--translate-bg);
+  border: 1px solid var(--translate-border);
+  box-shadow: 0 2px 8px var(--translate-shadow);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s, transform 0.15s;
+  opacity: 0.7;
+}
+.translate-trigger:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+.translate-trigger svg {
+  width: 16px;
+  height: 16px;
+  stroke: var(--translate-accent);
+}
+
+.translate-bubble {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 520px;
+  max-width: calc(100vw - 16px);
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--translate-bg);
+  border: 1px solid var(--translate-border);
+  border-radius: 12px;
+  box-shadow: 0 4px 24px var(--translate-shadow);
+  padding: 14px;
+  animation: translateFadeIn 0.2s ease-out;
+}
+@keyframes translateFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.translate-bubble-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.translate-bubble-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--translate-text-secondary);
+}
+.translate-bubble-close {
+  cursor: pointer;
+  opacity: 0.5;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: none;
+  background: none;
+  color: var(--translate-text);
+  padding: 0;
+}
+.translate-bubble-close:hover {
+  opacity: 1;
+  background: var(--translate-hover);
+}
+
+.translate-source-text {
+  font-size: 12px;
+  color: var(--translate-text-secondary);
+  margin-bottom: 8px;
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+.translate-result-text {
+  font-size: 15px;
+  word-break: break-word;
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+
+.translate-bubble-actions {
+  display: flex;
+  gap: 8px;
+}
+.translate-bubble-actions button {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--translate-border);
+  background: var(--translate-bg);
+  color: var(--translate-text);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.translate-bubble-actions button:hover {
+  background: var(--translate-hover);
+}
+
+.translate-loading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 0;
+}
+.translate-loading-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--translate-accent);
+  animation: translatePulse 1.2s ease-in-out infinite;
+}
+.translate-loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.translate-loading-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes translatePulse {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+.translate-error {
+  color: #e74c3c;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.translate-container.dark {
+  --translate-bg: #2d2d2d;
+  --translate-text: #e0e0e0;
+  --translate-text-secondary: #999999;
+  --translate-border: #444444;
+  --translate-shadow: rgba(0, 0, 0, 0.4);
+  --translate-accent: #5a9eef;
+  --translate-hover: #3a3a3a;
+}
+
+/* ====== 悬浮设置按钮（可拖拽 + 贴边） ====== */
+
+.translate-settings-btn {
+  all: initial;
+  position: fixed;
+  z-index: 2147483646;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+  transition: opacity 0.2s, box-shadow 0.2s;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.translate-settings-btn:hover {
+  opacity: 1;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.translate-settings-btn.dragging {
+  cursor: grabbing;
+  opacity: 0.9;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+  transition: none !important;
+}
+
+.translate-settings-btn img {
+  width: 22px;
+  height: 22px;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.translate-settings-btn.dark {
+  background: #3a3a3a;
+  border-color: #555;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+.translate-settings-btn.dark:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.translate-settings-btn.dark.dragging {
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+}
+
+/* ====== 内联设置面板 ====== */
+
+.translate-settings-overlay {
+  all: initial;
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  background: transparent;
+}
+
+.translate-settings-panel {
+  position: fixed;
+  z-index: 2147483647;
+  width: 340px;
+  overflow: visible;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 13px;
+  color: #333;
+  box-sizing: border-box;
+}
+
+.ts-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.ts-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ts-close {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: #999;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.ts-close:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.ts-body {
+  padding: 8px 16px 12px;
+}
+
+.ts-field {
+  margin-bottom: 6px;
+}
+
+.ts-field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 3px;
+}
+
+/* 基础输入框/下拉样式 */
+.ts-field input[type="text"],
+.ts-field input[type="password"] {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: inherit;
+  background: #fff;
+  color: #333;
+  box-sizing: border-box;
+}
+
+/* select 单独定义，避免 background 简写覆盖自定义箭头 */
+.ts-field select {
+  width: 100%;
+  padding: 6px 26px 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: inherit;
+  color: #333;
+  box-sizing: border-box;
+  cursor: pointer;
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+}
+
+.ts-field input:disabled {
+  background: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.ts-field select:disabled {
+  background-color: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.ts-checkbox-row {
+  margin-bottom: 4px !important;
+}
+
+.ts-field select:focus,
+.ts-field input:focus {
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 2px rgba(74,144,217,0.15);
+}
+
+.ts-input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ts-input-group input {
+  padding-right: 34px;
+}
+
+.ts-eye {
+  position: absolute;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.ts-eye:hover {
+  opacity: 1;
+}
+
+.ts-checkbox-row label {
+  display: flex !important;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  font-weight: 500 !important;
+  color: #444 !important;
+  font-size: 13px !important;
+}
+
+.ts-checkbox-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #4a90d9;
+  cursor: pointer;
+}
+
+.ts-divider {
+  border: none;
+  border-top: 1px solid #eee;
+  margin: 5px 0 7px;
+}
+
+.ts-row {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 4px;
+}
+
+.ts-row input,
+.ts-row select {
+  flex: 1;
+  min-width: 0;
+}
+
+.ts-btn {
+  padding: 7px 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.ts-btn-primary {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border-color: #c8e6c9;
+}
+
+.ts-btn-primary:hover {
+  background: #c8e6c9;
+}
+
+.ts-btn-danger {
+  background: #fce4ec;
+  color: #c62828;
+  border-color: #f8bbd0;
+  width: 34px;
+  padding: 7px 0;
+  text-align: center;
+}
+
+.ts-btn-danger:hover:not(:disabled) {
+  background: #f8bbd0;
+}
+
+.ts-btn-danger:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ts-status {
+  margin-top: 4px;
+  padding: 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  text-align: center;
+  display: none;
+}
+
+.ts-status.ts-show {
+  display: block;
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+/* ====== 浮动 Toast（内联设置面板） ====== */
+
+.ts-toast {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  background: #2e7d32;
+  color: #fff;
+  padding: 5px 16px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  transition: top 0.25s ease, opacity 0.25s ease;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ts-toast.show {
+  top: 8px;
+  opacity: 1;
+}
+
+.translate-settings-panel.dark .ts-toast {
+  background: #1b5e20;
+  color: #a5d6a7;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+
+/* ====== 暗色主题 ====== */
+
+.translate-settings-panel.dark {
+  background: #2d2d2d;
+  border-color: #444;
+  color: #e0e0e0;
+}
+
+.translate-settings-panel.dark .ts-header {
+  border-color: #444;
+}
+
+.translate-settings-panel.dark .ts-close {
+  color: #999;
+}
+
+.translate-settings-panel.dark .ts-close:hover {
+  background: #3a3a3a;
+  color: #e0e0e0;
+}
+
+.translate-settings-panel.dark .ts-field label {
+  color: #aaa;
+}
+
+.translate-settings-panel.dark .ts-field input[type="text"],
+.translate-settings-panel.dark .ts-field input[type="password"] {
+  background: #3a3a3a;
+  border-color: #555;
+  color: #e0e0e0;
+}
+
+.translate-settings-panel.dark .ts-field select {
+  background-color: #3a3a3a;
+  border-color: #555;
+  color: #e0e0e0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+
+.translate-settings-panel.dark .ts-field input:disabled,
+.translate-settings-panel.dark .ts-field select:disabled {
+  background: #333;
+  color: #888;
+}
+
+.translate-settings-panel.dark .ts-field select:focus,
+.translate-settings-panel.dark .ts-field input:focus {
+  border-color: #5a9eef;
+  box-shadow: 0 0 0 2px rgba(90,158,239,0.15);
+}
+
+.translate-settings-panel.dark .ts-checkbox-row label {
+  color: #ccc !important;
+}
+
+.translate-settings-panel.dark .ts-divider {
+  border-color: #444;
+}
+
+.translate-settings-panel.dark .ts-btn-primary {
+  background: #1b5e20;
+  color: #a5d6a7;
+  border-color: #2e7d32;
+}
+
+.translate-settings-panel.dark .ts-btn-primary:hover {
+  background: #2e7d32;
+}
+
+.translate-settings-panel.dark .ts-btn-danger {
+  background: #b71c1c;
+  color: #ef9a9a;
+  border-color: #c62828;
+}
+
+.translate-settings-panel.dark .ts-btn-danger:hover:not(:disabled) {
+  background: #c62828;
+}
+
+.translate-settings-panel.dark .ts-status.ts-show {
+  background: #1b5e20;
+  color: #a5d6a7;
+}
