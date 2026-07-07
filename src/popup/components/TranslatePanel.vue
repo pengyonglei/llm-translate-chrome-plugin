@@ -117,15 +117,35 @@ async function copyResult() {
 
 <style scoped>
 .translate-panel {
-  padding: 4px 12px 12px;
+  min-height: 100%;
+  padding: 10px 12px 12px;
+  background:
+    linear-gradient(135deg, rgba(35, 119, 255, 0.12), transparent 34%),
+    linear-gradient(315deg, rgba(14, 201, 167, 0.12), transparent 30%);
 }
-.config-tag { display: block; text-align: center; margin-bottom: 8px; }
-.translate-btn { margin-top: 8px; }
+.config-tag {
+  display: block;
+  text-align: center;
+  margin-bottom: 10px;
+  border-color: rgba(74, 144, 217, 0.28);
+  background: rgba(255, 255, 255, 0.82);
+  font-weight: 700;
+}
+.translate-btn {
+  margin-top: 10px;
+  background: #1e8cff;
+  border-color: #1e8cff;
+  box-shadow: 0 8px 18px rgba(30, 140, 255, 0.28);
+}
 .result-box {
   margin-top: 10px;
   padding: 10px;
-  border-radius: 6px;
-  background: #f8f9fa;
+  border: 1px solid rgba(74, 144, 217, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(244, 250, 255, 0.96)),
+    radial-gradient(circle at top right, rgba(20, 184, 166, 0.16), transparent 32%);
+  box-shadow: 0 8px 22px rgba(15, 82, 186, 0.08);
   font-size: 14px;
   line-height: 1.6;
   word-break: break-word;
@@ -141,4 +161,26 @@ async function copyResult() {
 .result-text { margin-bottom: 6px; }
 .copy-tag { cursor: pointer; user-select: none; }
 .copy-icon { vertical-align: -2px; margin-right: 3px; }
+
+:global(.dark .translate-panel) {
+  background:
+    linear-gradient(135deg, rgba(30, 140, 255, 0.14), transparent 36%),
+    linear-gradient(315deg, rgba(20, 184, 166, 0.13), transparent 34%),
+    #141414;
+}
+
+:global(.dark .config-tag) {
+  background: rgba(12, 31, 52, 0.86);
+  border-color: rgba(62, 166, 255, 0.38);
+  color: #b8dcff;
+}
+
+:global(.dark .result-box) {
+  background:
+    linear-gradient(135deg, rgba(19, 33, 51, 0.96), rgba(13, 31, 36, 0.96)),
+    radial-gradient(circle at top right, rgba(30, 140, 255, 0.18), transparent 34%);
+  border-color: rgba(62, 166, 255, 0.28);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+  color: #e8f3ff;
+}
 </style>

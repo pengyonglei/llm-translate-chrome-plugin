@@ -413,6 +413,7 @@
 
 .ts-row {
   display: flex;
+  align-items: stretch;
   gap: 5px;
   margin-bottom: 4px;
 }
@@ -424,7 +425,8 @@
 }
 
 .ts-btn {
-  padding: 7px 10px;
+  height: 32px;
+  padding: 0 10px;
   border: 1px solid #ddd;
   border-radius: 8px;
   font-size: 12px;
@@ -433,6 +435,10 @@
   transition: background 0.15s;
   font-family: inherit;
   white-space: nowrap;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .ts-btn-primary {
@@ -450,7 +456,7 @@
   color: #c62828;
   border-color: #f8bbd0;
   width: 34px;
-  padding: 7px 0;
+  padding: 0;
   text-align: center;
 }
 
