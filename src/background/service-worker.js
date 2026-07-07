@@ -3,7 +3,8 @@ const DNR_RULE_ID = 1001
 const PROVIDER_DEFAULTS = {
   deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', baseUrlLocked: true },
   bailian:  { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', baseUrlLocked: true },
-  openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', baseUrlLocked: false }
+  openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', baseUrlLocked: false },
+  ollama:   { baseUrl: 'http://localhost:11434/v1', model: 'llama3.1', baseUrlLocked: false }
 }
 
 // 用 declarativeNetRequest 移除内网 API 请求的 Origin 头，避免 403
@@ -65,7 +66,7 @@ function setCache(text, result) {
 async function getConfig() {
   const DEFAULTS = {
     provider: 'deepseek', apiKey: '', baseUrl: '', model: '',
-    targetLang: '中文', theme: 'system', disableThinking: true
+    targetLang: '简体中文', theme: 'system', disableThinking: true
   }
   const result = await chrome.storage.sync.get(DEFAULTS)
   const defaults = PROVIDER_DEFAULTS[result.provider]
@@ -92,6 +93,11 @@ async function translate(text, config) {
     ],
     temperature: 0.3,
     max_tokens: 4096
+  }
+
+  // DeepSeek：开关只控制是否禁用思考模式；开启时不设置 reasoning_effort，使用平台默认强度。
+  if (provider === 'deepseek') {
+    body.thinking = { type: disableThinking ? 'disabled' : 'enabled' }
   }
 
   // 阿里云百炼：关闭深度思考模式

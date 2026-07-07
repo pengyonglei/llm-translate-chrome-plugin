@@ -51,7 +51,7 @@ const configText = ref('')
 
 async function updateConfigText() {
   const cfg = await getConfig()
-  const names = { deepseek: 'DeepSeek', bailian: '阿里云百炼', openai: 'OpenAI' }
+  const names = { deepseek: 'DeepSeek', bailian: '阿里云百炼', openai: 'OpenAI', ollama: 'Ollama' }
   const provider = names[cfg.provider] || cfg.provider
   configText.value = `${provider} · ${cfg.model || '未配置模型'}`
 }

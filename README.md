@@ -4,72 +4,72 @@
 
 ## 功能特点
 
-- **划词即译** — 选中文本后点击图标或立即显示翻译结果，流畅高效
-- **手动输入翻译** — 在弹出面板中直接输入文本进行翻译，支持 `Ctrl+Enter` 快捷键
-- **多 LLM 提供商** — 内置 DeepSeek、阿里云百炼、OpenAI 兼容接口，自由切换
-- **可配置翻译时机** — 支持"点击图标时翻译"与"选中后立刻翻译"两种模式
-- **深色 / 浅色主题** — 跟随系统、浅色、深色三种主题可选
-- **配置预设** — 保存多组 API 配置，按需快速切换
-- **悬浮设置按钮** — 页面内可拖拽贴边的悬浮设置入口，无需打开弹窗即可配置
-- **翻译缓存** — 相同文本重复翻译时直接返回缓存结果，节省 API 调用
-- **内网兼容** — 自动移除内网 API 请求的 Origin 头，避免 403 问题
+- **划词即译**：选中网页文本后点击图标或立即显示翻译结果。
+- **手动输入翻译**：在扩展弹窗中输入文本并翻译，支持 `Ctrl+Enter` 快捷键。
+- **多 LLM 提供商**：内置 DeepSeek、阿里云百炼、OpenAI 兼容接口和 Ollama。
+- **可配置触发时机**：支持“点击图标时翻译”和“选中后立即翻译”两种模式。
+- **浅色 / 深色主题**：支持跟随系统、浅色、深色三种主题。
+- **配置预设**：保存多组 API 配置，按需快速切换。
+- **悬浮设置按钮**：网页内可拖拽贴边的设置入口，无需打开弹窗即可配置。
+- **翻译缓存**：相同文本重复翻译时直接返回缓存结果，减少 API 调用。
+- **内网兼容**：自动移除内网 API 请求的 Origin 头，避免 403 问题。
 
 ## 安装
 
-### 从 Chrome 网上应用店（已上架后）
+### 从 Chrome 网上应用店
 
-访问 Chrome 网上应用店搜索"AI 划词翻译"即可安装。
+上架后可在 Chrome 网上应用店搜索“AI 划词翻译”安装。
 
 ### 开发者模式加载
 
-1. 下载本项目并解压
-2. 打开 Chrome，进入 `chrome://extensions/`
-3. 开启右上角的"开发者模式"
-4. 点击"加载已解压的扩展程序"
-5. 选择项目根目录
+1. 安装依赖：
+
+   ```bash
+   npm install
+   ```
+
+2. 构建扩展：
+
+   ```bash
+   npm run build
+   ```
+
+3. 打开 Chrome，进入 `chrome://extensions/`。
+4. 开启右上角“开发者模式”。
+5. 点击“加载已解压的扩展程序”。
+6. 选择项目下的 `dist` 目录。
+
+> 注意：当前项目使用 Vite 构建，Chrome 加载目录是 `dist`，不是项目根目录。
 
 ## 配置
 
-安装后点击扩展栏图标，打开弹窗，进入"设置"面板完成以下配置：
+安装后点击扩展栏图标，打开弹窗，进入“设置”面板完成以下配置：
 
 | 配置项 | 说明 |
 |---|---|
-| **LLM 提供商** | DeepSeek / 阿里云百炼 / OpenAI 兼容 |
+| **LLM 提供商** | DeepSeek / 阿里云百炼 / OpenAI 兼容 / Ollama |
 | **API Key** | 对应提供商的 API 密钥 |
 | **API 地址** | 自动填充，OpenAI 兼容模式下可自定义 |
 | **模型** | 选择使用的模型 |
-| **目标语言** | 翻译目标语言，默认为"中文" |
-| **翻译触发时机** | 点击图标翻译 / 选中后立刻翻译 |
+| **目标语言** | 翻译目标语言，默认为“中文” |
+| **翻译触发时机** | 点击图标翻译 / 选中后立即翻译 |
 | **主题** | 跟随系统 / 浅色 / 深色 |
-| **禁用深度思考** | 关闭 DeepSeek Reasoner 等模型的深度思考模式 |
-
-### 配置预设
-
-可保存多组不同提供商的配置，通过下拉菜单快速切换，方便在不同场景下使用不同的模型。
-
-### 悬浮设置
-
-在任意网页中，页面右下角有一个可拖拽的悬浮翻译按钮：
-
-- **点击** — 打开内联设置面板，可随时修改配置
-- **拖拽** — 自由移动位置，松开后自动贴边（左 / 右）
+| **禁用深度思考** | 关闭 DeepSeek、阿里云百炼等支持平台的深度思考模式 |
 
 ## 使用
 
 ### 划词翻译
 
-1. 在任意网页中选中一段文本
-2. 根据触发模式：
-   - **点击图标**：选区附近出现一个地球图标，点击后显示翻译结果
-   - **立刻翻译**：选中文本后直接弹出翻译结果
-3. 翻译气泡中可点击"复制译文"复制结果
+1. 在任意网页中选中一段文本。
+2. 根据触发模式点击翻译图标，或等待翻译结果自动弹出。
+3. 在翻译气泡中查看结果，也可复制译文。
 
 ### 手动翻译
 
-1. 点击扩展图标打开弹窗
-2. 在文本框中输入或粘贴文本
-3. 点击"翻译"按钮或按 `Ctrl+Enter`
-4. 翻译结果显示在下方
+1. 点击扩展图标打开弹窗。
+2. 在文本框中输入或粘贴文本。
+3. 点击“翻译”按钮或按 `Ctrl+Enter`。
+4. 在下方查看翻译结果。
 
 ## 支持的 LLM 提供商
 
@@ -77,51 +77,64 @@
 |---|---|---|
 | **DeepSeek** | `deepseek-chat` | 是 |
 | **阿里云百炼** | `qwen-turbo` | 是 |
-| **OpenAI 兼容** | `gpt-4o-mini` | 否（可自定义） |
+| **OpenAI 兼容** | `gpt-4o-mini` | 否，可自定义 |
+| **Ollama** | `llama3.1` | 否，可自定义 |
 
-> OpenAI 兼容模式下可填写任意兼容 OpenAI API 格式的服务地址（如本地部署的 Ollama、vLLM 等）。
+OpenAI 兼容模式和 Ollama 模式都使用 OpenAI-compatible 接口。内网 Ollama 地址需要填到 `/v1`，例如 `http://192.168.1.10:11434/v1`。
 
 ## 项目结构
 
-```
-├── manifest.json            # 扩展清单（Manifest V3）
-├── background/
-│   └── service-worker.js    # 后台 Service Worker（翻译请求处理、缓存、DNR 规则）
-├── content/
-│   ├── content.js           # 内容脚本（划词监听、翻译气泡、悬浮按钮）
-│   └── content.css          # 内容样式
-├── popup/
-│   ├── popup.html           # 弹出面板 HTML
-│   ├── popup.js             # 弹出面板逻辑
-│   └── popup.css            # 弹出面板样式
-├── lib/
-│   ├── llm-provider.js      # LLM API 调用（弹窗侧）
-│   ├── prompt.js            # 翻译提示词构建
-│   └── storage.js           # 存储工具（配置读写、预设管理）
-└── icons/                   # 扩展图标
+```text
+├── public/
+│   ├── manifest.json        # Chrome 扩展清单（Manifest V3）
+│   └── icons/               # 扩展图标，构建时复制到 dist/icons
+├── src/
+│   ├── background/
+│   │   └── service-worker.js # 后台 Service Worker
+│   ├── content/
+│   │   ├── content.js        # 内容脚本
+│   │   └── content.css       # 内容脚本样式
+│   ├── lib/
+│   │   ├── llm-provider.js   # LLM API 调用
+│   │   ├── prompt.js         # 翻译提示词构建
+│   │   └── storage.js        # 配置读写与预设管理
+│   └── popup/
+│       ├── main.js           # 弹窗入口
+│       ├── App.vue           # 弹窗应用
+│       └── components/       # 弹窗组件
+├── index.html                # Vite 弹窗 HTML 入口
+├── vite.config.js            # 构建配置
+└── package.json
 ```
 
 ## 开发
 
 ```bash
-# 克隆项目
-git clone https://github.com/your-username/translate-chrome-plugin.git
-
-# 在 Chrome 开发者模式下加载本项目即可开始开发
-# 修改后刷新扩展或刷新页面查看效果
+npm install
+npm run build
 ```
 
-### 构建 / 打包
+构建后在 Chrome 开发者模式中加载 `dist` 目录。修改代码后重新运行 `npm run build`，然后在扩展管理页刷新扩展。
 
-直接在 Chrome 扩展管理页面点击"打包扩展程序"即可生成 `.crx` 文件。
+## 构建 / 打包
+
+生成可加载的扩展目录：
+
+```bash
+npm run build
+```
+
+构建结果位于 `dist/`。
+
+生成上传 Chrome Web Store 的压缩包时，将 `dist` 目录内的内容压缩成 `.zip`。如果要生成 `.crx`，在 Chrome 扩展管理页面点击“打包扩展程序”，扩展程序根目录选择 `dist`。
 
 ## 技术细节
 
-- 基于 **Chrome Manifest V3**，使用 Service Worker 处理后台请求
-- 使用 **declarativeNetRequest** 自动处理跨域 API 请求（移除 Origin 头防止内网 API 403）
-- 翻译请求通过 `chrome.runtime.sendMessage` 从 Content Script 发送至 Service Worker
-- 结果缓存采用内存 Map，TTL 10 分钟，上限 100 条
-- 配置通过 `chrome.storage.sync` 同步存储
+- 基于 **Chrome Manifest V3**，使用 Service Worker 处理后台请求。
+- 使用 **declarativeNetRequest** 自动处理跨域 API 请求，移除 Origin 头以兼容部分内网 API。
+- 翻译请求通过 `chrome.runtime.sendMessage` 从 Content Script 发送至 Service Worker。
+- 结果缓存采用内存 Map，TTL 10 分钟，上限 100 条。
+- 配置通过 `chrome.storage.sync` 同步存储。
 
 ## License
 

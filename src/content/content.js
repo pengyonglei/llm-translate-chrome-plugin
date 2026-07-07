@@ -446,7 +446,7 @@ function restoreBtnPosition() {
 
 // ====== 内联设置面板 ======
 
-const PROVIDER_NAMES = { deepseek: 'DeepSeek', bailian: '阿里云百炼', openai: 'OpenAI' }
+const PROVIDER_NAMES = { deepseek: 'DeepSeek', bailian: '阿里云百炼', openai: 'OpenAI', ollama: 'Ollama' }
 
 function $(id) { return document.getElementById(id) }
 
@@ -470,6 +470,7 @@ async function showSettingsPanel() {
           <option value="deepseek">DeepSeek</option>
           <option value="bailian">阿里云百炼</option>
           <option value="openai">OpenAI 兼容</option>
+          <option value="ollama">Ollama</option>
         </select>
       </div>
       <div class="ts-field">
@@ -630,16 +631,18 @@ function tsStatus(msg) {
   }, 1800)
 }
 
-function tsUpdatePlaceholders(provider) {
+function tsUpdatePlaceholders(provider, resetValues = false) {
   const defaults = {
     deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', locked: true },
     bailian:  { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', locked: true },
-    openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', locked: false }
+    openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', locked: false },
+    ollama:   { baseUrl: 'http://localhost:11434/v1', model: 'llama3.1', locked: false }
   }
   const d = defaults[provider] || defaults.openai
   $('ts-baseUrl').disabled = d.locked
   $('ts-baseUrl').value = d.baseUrl
   $('ts-model').placeholder = d.model
+  if (resetValues) $('ts-model').value = d.model
 }
 
 async function refreshTsPresets(selected) {
@@ -663,7 +666,8 @@ async function tsLoadPreset(name) {
   const PROVIDER_DEFAULTS = {
     deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', locked: true },
     bailian:  { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', locked: true },
-    openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', locked: false }
+    openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', locked: false },
+    ollama:   { baseUrl: 'http://localhost:11434/v1', model: 'llama3.1', locked: false }
   }
 
   const provider = p.provider || 'openai'
@@ -687,7 +691,7 @@ function setupTsListeners() {
   $('tsClose').addEventListener('click', closeSettingsPanel)
 
   $('ts-provider').addEventListener('change', function () {
-    tsUpdatePlaceholders(this.value)
+    tsUpdatePlaceholders(this.value, true)
     tsSaveConfig()
   })
 

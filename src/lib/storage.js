@@ -12,7 +12,8 @@ const DEFAULTS = {
 const PROVIDER_DEFAULTS = {
   deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', baseUrlLocked: true, apiKeyPlaceholder: 'sk-...' },
   bailian:  { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', baseUrlLocked: true, apiKeyPlaceholder: 'sk-...' },
-  openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', baseUrlLocked: false, apiKeyPlaceholder: 'sk-...' }
+  openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', baseUrlLocked: false, apiKeyPlaceholder: 'sk-...' },
+  ollama:   { baseUrl: 'http://localhost:11434/v1', model: 'llama3.1', baseUrlLocked: false, apiKeyPlaceholder: 'Ollama 通常无需填写' }
 }
 
 export async function getConfig() {
@@ -35,7 +36,8 @@ export function getProviderModels(provider) {
   const MODELS = {
     deepseek: ['deepseek-chat', 'deepseek-reasoner'],
     bailian:  ['qwen-turbo', 'qwen-plus', 'qwen-max', 'qwen-turbo-latest', 'qwen-plus-latest', 'qwen-max-latest'],
-    openai:   ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo']
+    openai:   ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+    ollama:   ['llama3.1', 'qwen2.5', 'mistral', 'gemma2']
   }
   return MODELS[provider] || []
 }

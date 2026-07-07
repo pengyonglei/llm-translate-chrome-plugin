@@ -6,6 +6,7 @@
           <a-select-option value="deepseek">DeepSeek</a-select-option>
           <a-select-option value="bailian">阿里云百炼</a-select-option>
           <a-select-option value="openai">OpenAI 兼容</a-select-option>
+          <a-select-option value="ollama">Ollama</a-select-option>
         </a-select>
       </a-form-item>
 
@@ -81,9 +82,10 @@ import { ref, reactive, onMounted, watch } from 'vue'
 import { getConfig, setConfig, getProviderDefaults, isProviderLocked, getPresets, savePreset as storeSavePreset, deletePreset as storeDeletePreset } from '../../lib/storage.js'
 
 const PROVIDER_DEFAULTS = {
-  deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', locked: true },
+  deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-v4-flash', locked: true },
   bailian:  { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', locked: true },
-  openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', locked: false }
+  openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', locked: false },
+  ollama:   { baseUrl: 'http://localhost:11434/v1', model: 'qwen2.5', locked: false }
 }
 
 const form = reactive({
@@ -91,7 +93,7 @@ const form = reactive({
   apiKey: '',
   baseUrl: '',
   model: '',
-  targetLang: '中文',
+  targetLang: '简体中文',
   theme: 'system',
   disableThinking: true,
   triggerMode: 'click'
@@ -128,17 +130,18 @@ watch(
 )
 
 function onProviderChange(val) {
-  updatePlaceholders(val)
+  updatePlaceholders(val, true)
 }
 
-function updatePlaceholders(provider) {
+function updatePlaceholders(provider, resetValues = false) {
   const d = PROVIDER_DEFAULTS[provider]
   if (!d) return
   isLocked.value = d.locked
   apiUrlPlaceholder.value = d.baseUrl
   modelPlaceholder.value = d.model
-  apiKeyPlaceholder.value = 'sk-...'
-  if (d.locked) form.baseUrl = d.baseUrl
+  apiKeyPlaceholder.value = provider === 'ollama' ? 'Ollama 通常无需填写' : 'sk-...'
+  if (d.locked || resetValues) form.baseUrl = d.baseUrl
+  if (resetValues) form.model = d.model
 }
 
 function showToast(msg) {
