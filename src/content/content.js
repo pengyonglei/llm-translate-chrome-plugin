@@ -446,7 +446,7 @@ function restoreBtnPosition() {
 
 // ====== 内联设置面板 ======
 
-const PROVIDER_NAMES = { deepseek: 'DeepSeek', bailian: '阿里云百炼', openai: 'OpenAI', ollama: 'Ollama' }
+const PROVIDER_NAMES = { deepseek: 'DeepSeek', bailian: '阿里云百炼', zhipu: '智谱 AI', openai: 'OpenAI', ollama: 'Ollama' }
 
 function $(id) { return document.getElementById(id) }
 
@@ -469,6 +469,7 @@ async function showSettingsPanel() {
         <select id="ts-provider">
           <option value="deepseek">DeepSeek</option>
           <option value="bailian">阿里云百炼</option>
+          <option value="zhipu">智谱 AI</option>
           <option value="openai">OpenAI 兼容</option>
           <option value="ollama">Ollama</option>
         </select>
@@ -481,11 +482,11 @@ async function showSettingsPanel() {
         </div>
       </div>
       <div class="ts-field">
-        <label>API 地址</label>
+        <label>API 端点</label>
         <input type="text" id="ts-baseUrl" spellcheck="false" />
       </div>
       <div class="ts-field">
-        <label>模型</label>
+        <label>模型名称（模型ID）</label>
         <input type="text" id="ts-model" spellcheck="false" />
       </div>
       <div class="ts-field">
@@ -583,7 +584,7 @@ async function loadTsConfig() {
   })
   // 先应用提供商默认值（disabled 状态、placeholder）
   tsUpdatePlaceholders(cfg.provider)
-  // 再从 storage 覆盖（保留用户自定义的 API 地址、模型等）
+  // 再从 storage 覆盖（保留用户自定义的 API 端点、模型等）
   $('ts-provider').value = cfg.provider
   $('ts-apiKey').value = cfg.apiKey
   $('ts-baseUrl').value = cfg.baseUrl
@@ -635,6 +636,7 @@ function tsUpdatePlaceholders(provider, resetValues = false) {
   const defaults = {
     deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', locked: true },
     bailian:  { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', locked: true },
+    zhipu:    { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.2', locked: true },
     openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', locked: false },
     ollama:   { baseUrl: 'http://localhost:11434/v1', model: 'llama3.1', locked: false }
   }
@@ -666,6 +668,7 @@ async function tsLoadPreset(name) {
   const PROVIDER_DEFAULTS = {
     deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', locked: true },
     bailian:  { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', locked: true },
+    zhipu:    { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.2', locked: true },
     openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', locked: false },
     ollama:   { baseUrl: 'http://localhost:11434/v1', model: 'llama3.1', locked: false }
   }
@@ -681,7 +684,6 @@ async function tsLoadPreset(name) {
   $('ts-apiKey').value = p.apiKey || ''
   $('ts-targetLang').value = p.targetLang || '中文'
   $('ts-disableThinking').checked = p.disableThinking !== false
-  if (p.triggerMode) $('ts-triggerMode').value = p.triggerMode
 
   await tsSaveConfig()
   tsStatus(`已载入预设「${name}」`)
@@ -726,8 +728,7 @@ function setupTsListeners() {
     presets[name] = {
       provider: $('ts-provider').value, apiKey: $('ts-apiKey').value,
       baseUrl: $('ts-baseUrl').value, model: $('ts-model').value,
-      targetLang: $('ts-targetLang').value, disableThinking: $('ts-disableThinking').checked,
-      triggerMode: $('ts-triggerMode').value
+      targetLang: $('ts-targetLang').value, disableThinking: $('ts-disableThinking').checked
     }
     await chrome.storage.sync.set({ translationPresets: presets })
     $('ts-presetName').value = ''

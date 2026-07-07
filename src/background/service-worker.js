@@ -3,6 +3,7 @@ const DNR_RULE_ID = 1001
 const PROVIDER_DEFAULTS = {
   deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', baseUrlLocked: true },
   bailian:  { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', baseUrlLocked: true },
+  zhipu:    { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.2', baseUrlLocked: true },
   openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', baseUrlLocked: false },
   ollama:   { baseUrl: 'http://localhost:11434/v1', model: 'llama3.1', baseUrlLocked: false }
 }
@@ -97,6 +98,11 @@ async function translate(text, config) {
 
   // DeepSeek：开关只控制是否禁用思考模式；开启时不设置 reasoning_effort，使用平台默认强度。
   if (provider === 'deepseek') {
+    body.thinking = { type: disableThinking ? 'disabled' : 'enabled' }
+  }
+
+  // 智谱 AI：开关只控制是否禁用思考模式；开启时不设置思考强度，使用平台默认行为。
+  if (provider === 'zhipu') {
     body.thinking = { type: disableThinking ? 'disabled' : 'enabled' }
   }
 

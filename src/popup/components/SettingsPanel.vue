@@ -13,6 +13,19 @@
       />
     </div>
 
+    <div class="theme-strip">
+      <div>
+        <div class="theme-title">翻译触发</div>
+        <div class="theme-subtitle">独立于模型预设</div>
+      </div>
+      <a-segmented
+        v-model:value="selectedTriggerMode"
+        size="small"
+        :options="triggerModeOptions"
+        @change="saveTriggerMode"
+      />
+    </div>
+
     <div class="settings-toolbar">
       <div>
         <div class="settings-title">模型预设</div>
@@ -40,7 +53,7 @@
               <span>{{ providerName(item.provider) }}</span>
               <span>{{ item.model || '未配置模型' }}</span>
             </div>
-            <div class="model-url">{{ item.baseUrl || '未配置 API 地址' }}</div>
+            <div class="model-url">{{ item.baseUrl || '未配置 API 端点' }}</div>
           </div>
           <div class="model-actions">
             <a-tooltip title="设为使用">
@@ -85,6 +98,7 @@
           <a-select v-model:value="form.provider" @change="onProviderChange">
             <a-select-option value="deepseek">DeepSeek</a-select-option>
             <a-select-option value="bailian">阿里云百炼</a-select-option>
+            <a-select-option value="zhipu">智谱 AI</a-select-option>
             <a-select-option value="openai">OpenAI 兼容</a-select-option>
             <a-select-option value="ollama">Ollama</a-select-option>
           </a-select>
@@ -94,23 +108,16 @@
           <a-input-password v-model:value="form.apiKey" :placeholder="apiKeyPlaceholder" />
         </a-form-item>
 
-        <a-form-item label="API 地址">
+        <a-form-item label="API 端点">
           <a-input v-model:value="form.baseUrl" :disabled="isLocked" :placeholder="apiUrlPlaceholder" />
         </a-form-item>
 
-        <a-form-item label="模型">
+        <a-form-item label="模型名称（模型ID）">
           <a-input v-model:value="form.model" :placeholder="modelPlaceholder" />
         </a-form-item>
 
         <a-form-item label="目标语言">
           <a-input v-model:value="form.targetLang" />
-        </a-form-item>
-
-        <a-form-item label="翻译触发时机">
-          <a-select v-model:value="form.triggerMode">
-            <a-select-option value="click">点击图标时翻译</a-select-option>
-            <a-select-option value="immediate">选中后立刻翻译</a-select-option>
-          </a-select>
         </a-form-item>
 
         <a-form-item label="禁用深度思考模式">
@@ -137,6 +144,7 @@ import { getConfig, getPresets, setConfig } from '../../lib/storage.js'
 const PROVIDER_NAMES = {
   deepseek: 'DeepSeek',
   bailian: '阿里云百炼',
+  zhipu: '智谱 AI',
   openai: 'OpenAI 兼容',
   ollama: 'Ollama'
 }
@@ -144,6 +152,7 @@ const PROVIDER_NAMES = {
 const PROVIDER_DEFAULTS = {
   deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-v4-flash', locked: true },
   bailian:  { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', locked: true },
+  zhipu:    { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.2', locked: true },
   openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', locked: false },
   ollama:   { baseUrl: 'http://localhost:11434/v1', model: 'qwen2.5', locked: false }
 }
@@ -155,11 +164,17 @@ const drawerOpen = ref(false)
 const drawerMode = ref('add')
 const editingName = ref('')
 const selectedTheme = ref('system')
+const selectedTriggerMode = ref('click')
 
 const themeOptions = [
   { label: '系统', value: 'system' },
   { label: '浅色', value: 'light' },
   { label: '深色', value: 'dark' }
+]
+
+const triggerModeOptions = [
+  { label: '点击图标', value: 'click' },
+  { label: '立即翻译', value: 'immediate' }
 ]
 
 const form = reactive(createEmptyForm())
@@ -170,7 +185,12 @@ const apiUrlPlaceholder = ref('')
 const modelPlaceholder = ref('')
 
 const presetRows = computed(() => {
-  return Object.entries(presets.value).map(([name, preset]) => ({ name, ...preset }))
+  return Object.entries(presets.value)
+    .map(([name, preset], index) => ({ name, index, ...preset }))
+    .sort((a, b) => {
+      const activeDelta = Number(isActive(b.name)) - Number(isActive(a.name))
+      return activeDelta || a.index - b.index
+    })
 })
 
 const drawerTitle = computed(() => drawerMode.value === 'edit' ? '编辑模型预设' : '新增模型预设')
@@ -185,8 +205,7 @@ function createEmptyForm() {
     baseUrl: '',
     model: '',
     targetLang: '简体中文',
-    disableThinking: true,
-    triggerMode: 'click'
+    disableThinking: true
   }
 }
 
@@ -194,12 +213,13 @@ async function loadData() {
   const [presetData, cfg, meta] = await Promise.all([
     getPresets(),
     getConfig(),
-    chrome.storage.sync.get({ activePresetName: '', theme: 'system' })
+    chrome.storage.sync.get({ activePresetName: '', theme: 'system', triggerMode: 'click' })
   ])
   presets.value = presetData || {}
   currentConfig.value = cfg || {}
   activePresetName.value = meta.activePresetName || ''
   selectedTheme.value = meta.theme || 'system'
+  selectedTriggerMode.value = meta.triggerMode || 'click'
 }
 
 function resetForm(values = {}) {
@@ -233,7 +253,11 @@ function updatePlaceholders(provider, resetValues = false) {
   isLocked.value = d.locked
   apiUrlPlaceholder.value = d.baseUrl
   modelPlaceholder.value = d.model
-  apiKeyPlaceholder.value = provider === 'ollama' ? 'Ollama 通常无需填写' : 'sk-...'
+  apiKeyPlaceholder.value = provider === 'ollama'
+    ? 'Ollama 通常无需填写'
+    : provider === 'zhipu'
+      ? '请输入智谱 API Key'
+      : 'sk-...'
   if (d.locked || resetValues) form.baseUrl = d.baseUrl
   if (resetValues) form.model = d.model
 }
@@ -318,13 +342,16 @@ function normalizePreset(values) {
     baseUrl: values.baseUrl || defaults.baseUrl,
     model: values.model || defaults.model,
     targetLang: values.targetLang || '简体中文',
-    disableThinking: values.disableThinking !== false,
-    triggerMode: values.triggerMode || 'click'
+    disableThinking: values.disableThinking !== false
   }
 }
 
 async function applyModelConfig(preset) {
-  const config = { ...normalizePreset(preset), theme: selectedTheme.value }
+  const config = {
+    ...normalizePreset(preset),
+    theme: selectedTheme.value,
+    triggerMode: selectedTriggerMode.value
+  }
   await setConfig(config)
   currentConfig.value = config
 }
@@ -334,6 +361,13 @@ async function saveTheme(theme) {
   await chrome.storage.sync.set({ theme })
   currentConfig.value = { ...currentConfig.value, theme }
   showToast('主题已更新')
+}
+
+async function saveTriggerMode(triggerMode) {
+  selectedTriggerMode.value = triggerMode
+  await chrome.storage.sync.set({ triggerMode })
+  currentConfig.value = { ...currentConfig.value, triggerMode }
+  showToast('触发方式已更新')
 }
 
 function providerName(provider) {
@@ -347,7 +381,7 @@ function isActive(name) {
 }
 
 function sameConfig(a, b) {
-  const keys = ['provider', 'apiKey', 'baseUrl', 'model', 'targetLang', 'triggerMode']
+  const keys = ['provider', 'apiKey', 'baseUrl', 'model', 'targetLang']
   return keys.every(key => (a?.[key] || '') === (b?.[key] || '')) &&
     (a?.disableThinking !== false) === (b?.disableThinking !== false)
 }
@@ -510,6 +544,24 @@ function showToast(msg) {
 
 .settings-panel :deep(.ant-segmented) {
   background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(30, 140, 255, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+}
+
+.settings-panel :deep(.ant-segmented-item) {
+  color: #536274;
+  font-weight: 700;
+}
+
+.settings-panel :deep(.ant-segmented-item-selected) {
+  background: linear-gradient(135deg, #1e8cff, #23c7b7);
+  color: #fff;
+  box-shadow: 0 5px 14px rgba(30, 140, 255, 0.32);
+}
+
+.settings-panel :deep(.ant-segmented-thumb) {
+  background: linear-gradient(135deg, #1e8cff, #23c7b7);
+  box-shadow: 0 5px 14px rgba(30, 140, 255, 0.32);
 }
 
 .settings-panel :deep(.ant-btn-primary:not(:disabled)) {
@@ -574,5 +626,14 @@ function showToast(msg) {
 
 :global(.dark .settings-panel .ant-segmented) {
   background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(62, 166, 255, 0.28);
+}
+
+:global(.dark .settings-panel .ant-segmented-item) {
+  color: #a8bed4;
+}
+
+:global(.dark .settings-panel .ant-segmented-item-selected) {
+  color: #fff;
 }
 </style>
