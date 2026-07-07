@@ -1,29 +1,51 @@
 <template>
   <div class="settings-panel">
-    <div class="theme-strip">
-      <div>
-        <div class="theme-title">界面主题</div>
-        <div class="theme-subtitle">独立于模型预设</div>
+    <div class="global-strip" :class="{ collapsed: globalSettingsCollapsed }">
+      <div class="global-head" @click="toggleGlobalSettings">
+        <div>
+          <div class="theme-title">全局设置</div>
+          <div class="theme-subtitle">独立于模型预设</div>
+        </div>
+        <a-button
+          class="global-toggle"
+          shape="circle"
+          size="small"
+          :aria-expanded="!globalSettingsCollapsed"
+          @click.stop="toggleGlobalSettings"
+        >
+          <template #icon><DownOutlined /></template>
+        </a-button>
       </div>
-      <a-segmented
-        v-model:value="selectedTheme"
-        size="small"
-        :options="themeOptions"
-        @change="saveTheme"
-      />
-    </div>
-
-    <div class="theme-strip">
-      <div>
-        <div class="theme-title">翻译触发</div>
-        <div class="theme-subtitle">独立于模型预设</div>
+      <div class="global-grid">
+        <div class="global-item global-item-theme">
+          <span>主题</span>
+          <a-segmented
+            v-model:value="selectedTheme"
+            size="small"
+            :options="themeOptions"
+            @change="saveTheme"
+          />
+        </div>
+        <div class="global-item global-item-trigger">
+          <span>翻译触发</span>
+          <a-segmented
+            v-model:value="selectedTriggerMode"
+            size="small"
+            :options="triggerModeOptions"
+            @change="saveTriggerMode"
+          />
+        </div>
+        <div class="global-item global-item-lang">
+          <span>目标语言</span>
+          <a-input
+            v-model:value="selectedTargetLang"
+            size="small"
+            placeholder="中文"
+            @change="saveTargetLang"
+            @pressEnter="saveTargetLang"
+          />
+        </div>
       </div>
-      <a-segmented
-        v-model:value="selectedTriggerMode"
-        size="small"
-        :options="triggerModeOptions"
-        @change="saveTriggerMode"
-      />
     </div>
 
     <div class="settings-toolbar">
@@ -116,10 +138,6 @@
           <a-input v-model:value="form.model" :placeholder="modelPlaceholder" />
         </a-form-item>
 
-        <a-form-item label="目标语言">
-          <a-input v-model:value="form.targetLang" />
-        </a-form-item>
-
         <a-form-item label="禁用深度思考模式">
           <a-switch v-model:checked="form.disableThinking" />
         </a-form-item>
@@ -137,7 +155,7 @@
 
 <script setup>
 import { computed, createVNode, reactive, ref, onMounted } from 'vue'
-import { ExclamationCircleOutlined, CheckOutlined, DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons-vue'
+import { ExclamationCircleOutlined, CheckOutlined, DeleteOutlined, EditOutlined, PlusOutlined, DownOutlined } from '@ant-design/icons-vue'
 import { Modal } from 'ant-design-vue'
 import { getConfig, getPresets, setConfig } from '../../lib/storage.js'
 
@@ -165,6 +183,8 @@ const drawerMode = ref('add')
 const editingName = ref('')
 const selectedTheme = ref('system')
 const selectedTriggerMode = ref('click')
+const selectedTargetLang = ref('中文')
+const globalSettingsCollapsed = ref(false)
 
 const themeOptions = [
   { label: '系统', value: 'system' },
@@ -174,7 +194,8 @@ const themeOptions = [
 
 const triggerModeOptions = [
   { label: '点击图标', value: 'click' },
-  { label: '立即翻译', value: 'immediate' }
+  { label: '立即翻译', value: 'immediate' },
+  { label: '不翻译', value: 'disabled' }
 ]
 
 const form = reactive(createEmptyForm())
@@ -204,7 +225,6 @@ function createEmptyForm() {
     apiKey: '',
     baseUrl: '',
     model: '',
-    targetLang: '简体中文',
     disableThinking: true
   }
 }
@@ -213,13 +233,21 @@ async function loadData() {
   const [presetData, cfg, meta] = await Promise.all([
     getPresets(),
     getConfig(),
-    chrome.storage.sync.get({ activePresetName: '', theme: 'system', triggerMode: 'click' })
+    chrome.storage.sync.get({
+      activePresetName: '',
+      theme: 'system',
+      triggerMode: 'click',
+      targetLang: '中文',
+      globalSettingsCollapsed: false
+    })
   ])
   presets.value = presetData || {}
   currentConfig.value = cfg || {}
   activePresetName.value = meta.activePresetName || ''
   selectedTheme.value = meta.theme || 'system'
   selectedTriggerMode.value = meta.triggerMode || 'click'
+  selectedTargetLang.value = meta.targetLang || '中文'
+  globalSettingsCollapsed.value = Boolean(meta.globalSettingsCollapsed)
 }
 
 function resetForm(values = {}) {
@@ -341,7 +369,6 @@ function normalizePreset(values) {
     apiKey: values.apiKey || '',
     baseUrl: values.baseUrl || defaults.baseUrl,
     model: values.model || defaults.model,
-    targetLang: values.targetLang || '简体中文',
     disableThinking: values.disableThinking !== false
   }
 }
@@ -350,7 +377,8 @@ async function applyModelConfig(preset) {
   const config = {
     ...normalizePreset(preset),
     theme: selectedTheme.value,
-    triggerMode: selectedTriggerMode.value
+    triggerMode: selectedTriggerMode.value,
+    targetLang: selectedTargetLang.value || '中文'
   }
   await setConfig(config)
   currentConfig.value = config
@@ -370,6 +398,19 @@ async function saveTriggerMode(triggerMode) {
   showToast('触发方式已更新')
 }
 
+async function saveTargetLang() {
+  const targetLang = selectedTargetLang.value.trim() || '中文'
+  selectedTargetLang.value = targetLang
+  await chrome.storage.sync.set({ targetLang })
+  currentConfig.value = { ...currentConfig.value, targetLang }
+  showToast('目标语言已更新')
+}
+
+async function toggleGlobalSettings() {
+  globalSettingsCollapsed.value = !globalSettingsCollapsed.value
+  await chrome.storage.sync.set({ globalSettingsCollapsed: globalSettingsCollapsed.value })
+}
+
 function providerName(provider) {
   return PROVIDER_NAMES[provider] || provider || '未知平台'
 }
@@ -381,7 +422,7 @@ function isActive(name) {
 }
 
 function sameConfig(a, b) {
-  const keys = ['provider', 'apiKey', 'baseUrl', 'model', 'targetLang']
+  const keys = ['provider', 'apiKey', 'baseUrl', 'model']
   return keys.every(key => (a?.[key] || '') === (b?.[key] || '')) &&
     (a?.disableThinking !== false) === (b?.disableThinking !== false)
 }
@@ -410,17 +451,96 @@ function showToast(msg) {
     linear-gradient(315deg, rgba(14, 201, 167, 0.12), transparent 30%);
 }
 
-.theme-strip {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+.global-strip {
   padding: 10px;
   margin-bottom: 10px;
   border: 1px solid rgba(74, 144, 217, 0.22);
   border-radius: 8px;
   background: linear-gradient(135deg, rgba(21, 101, 216, 0.12), rgba(20, 184, 166, 0.12));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.global-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: -4px -4px 8px;
+  padding: 4px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+
+.global-head:hover {
+  background: rgba(30, 140, 255, 0.08);
+}
+
+.global-toggle {
+  flex: 0 0 auto;
+  color: #1e8cff;
+  transition: transform 0.18s ease, color 0.18s ease;
+}
+
+.global-toggle :deep(.anticon) {
+  transition: transform 0.18s ease;
+}
+
+.global-strip.collapsed .global-head {
+  margin-bottom: 0;
+}
+
+.global-strip.collapsed .global-toggle :deep(.anticon) {
+  transform: rotate(-90deg);
+}
+
+.global-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  max-height: 136px;
+  overflow: hidden;
+  transition: max-height 0.2s ease, opacity 0.18s ease, margin-top 0.18s ease;
+}
+
+.global-strip.collapsed .global-grid {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.global-item {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.global-item span {
+  flex: 0 0 64px;
+  color: #344054;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 16px;
+}
+
+.global-item :deep(.ant-segmented),
+.global-item :deep(.ant-input) {
+  width: min(276px, calc(100% - 76px));
+}
+
+.global-item :deep(.ant-input) {
+  font-weight: 700;
+}
+
+.global-item :deep(.ant-segmented-group) {
+  width: 100%;
+}
+
+.global-item :deep(.ant-segmented-item) {
+  flex: 1;
+  text-align: center;
 }
 
 .theme-title {
@@ -588,10 +708,24 @@ function showToast(msg) {
     #141414;
 }
 
-:global(.dark .theme-strip) {
+:global(.dark .global-strip) {
   border-color: rgba(62, 166, 255, 0.38);
   background: linear-gradient(135deg, rgba(17, 53, 86, 0.88), rgba(9, 55, 49, 0.88));
   box-shadow: inset 0 1px 0 rgba(147, 197, 253, 0.2), 0 8px 20px rgba(0, 0, 0, 0.22);
+}
+
+:global(.dark .global-item span) {
+  color: #bfd2e5;
+}
+
+:global(.dark .global-toggle) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(62, 166, 255, 0.32);
+  color: #66b8ff;
+}
+
+:global(.dark .global-head:hover) {
+  background: rgba(62, 166, 255, 0.12);
 }
 
 :global(.dark .theme-subtitle),

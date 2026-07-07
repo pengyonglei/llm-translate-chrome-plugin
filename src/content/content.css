@@ -13,7 +13,7 @@
   position: fixed;
   inset: 0;
   z-index: 2147483647;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   font-size: 14px;
   line-height: 1.5;
   color: var(--translate-text);
@@ -234,13 +234,17 @@
 .translate-settings-panel {
   position: fixed;
   z-index: 2147483647;
-  width: 340px;
-  overflow: visible;
-  background: #fff;
-  border: 1px solid #e0e0e0;
+  width: 380px;
+  max-width: calc(100vw - 20px);
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(35, 119, 255, 0.12), transparent 34%),
+    linear-gradient(315deg, rgba(14, 201, 167, 0.12), transparent 30%),
+    #fff;
+  border: 1px solid rgba(74, 144, 217, 0.22);
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  box-shadow: 0 12px 34px rgba(15, 82, 186, 0.14);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   font-size: 13px;
   color: #333;
   box-sizing: border-box;
@@ -280,7 +284,392 @@
 }
 
 .ts-body {
-  padding: 8px 16px 12px;
+  padding: 10px 16px 12px;
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.ts-global-card,
+.ts-control-card {
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(74, 144, 217, 0.22);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(21, 101, 216, 0.12), rgba(20, 184, 166, 0.12));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.ts-control-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ts-global-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: -4px -4px 8px;
+  padding: 4px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+
+.ts-global-head:hover {
+  background: rgba(30, 140, 255, 0.08);
+}
+
+.ts-global-toggle {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(30, 140, 255, 0.22);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.74);
+  color: #1e8cff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.ts-global-toggle svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.18s ease;
+}
+
+.ts-global-card.collapsed .ts-global-head {
+  margin-bottom: 0;
+}
+
+.ts-global-card.collapsed .ts-global-toggle svg {
+  transform: rotate(-90deg);
+}
+
+.ts-global-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  max-height: 136px;
+  overflow: hidden;
+  transition: max-height 0.2s ease, opacity 0.18s ease;
+}
+
+.ts-global-card.collapsed .ts-global-grid {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ts-global-item {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ts-global-item span {
+  flex: 0 0 64px;
+  color: #344054;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 16px;
+}
+
+.ts-global-item .ts-segmented,
+.ts-global-item input {
+  width: min(252px, calc(100% - 76px));
+}
+
+.ts-global-item input {
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid rgba(30, 140, 255, 0.22);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.84);
+  color: #1d2939;
+  font-size: 12px;
+  font-weight: 700;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.ts-global-item .ts-segmented button {
+  flex: 1;
+  min-width: 0;
+}
+
+.ts-global-item input:focus {
+  border-color: #1e8cff;
+  box-shadow: 0 0 0 2px rgba(30, 140, 255, 0.14);
+}
+
+.ts-control-title,
+.ts-section-title {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 18px;
+}
+
+.ts-control-subtitle,
+.ts-section-subtitle {
+  color: #667085;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.ts-segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid rgba(30, 140, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.ts-segmented button {
+  height: 26px;
+  min-width: 42px;
+  padding: 0 9px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #536274;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ts-segmented-wide button {
+  min-width: 54px;
+  padding: 0 7px;
+}
+
+.ts-segmented button.active {
+  background: linear-gradient(135deg, #1e8cff, #23c7b7);
+  color: #fff;
+  box-shadow: 0 5px 14px rgba(30, 140, 255, 0.32);
+}
+
+.ts-model-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 2px;
+}
+
+.ts-model-list {
+  margin-bottom: 8px;
+}
+
+.ts-empty {
+  padding: 24px 0;
+  color: #667085;
+  text-align: center;
+}
+
+.ts-model-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(74, 144, 217, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(244, 250, 255, 0.96)),
+    radial-gradient(circle at top right, rgba(20, 184, 166, 0.18), transparent 32%);
+  box-shadow: 0 8px 22px rgba(15, 82, 186, 0.08);
+}
+
+.ts-model-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.ts-model-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+}
+
+.ts-model-title span,
+.ts-model-meta span,
+.ts-model-url {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ts-model-title em {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #e8fbe8;
+  color: #1f8f2e;
+  font-style: normal;
+  font-size: 11px;
+}
+
+.ts-model-meta {
+  display: flex;
+  gap: 6px;
+  color: #345;
+  font-size: 12px;
+}
+
+.ts-model-meta b {
+  color: #1677ff;
+}
+
+.ts-model-url {
+  color: #667085;
+  font-size: 11px;
+}
+
+.ts-model-actions {
+  flex: 0 0 104px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.ts-model-actions button {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid rgba(74, 144, 217, 0.28);
+  border-radius: 50%;
+  background: #fff;
+  color: #1e8cff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  box-sizing: border-box;
+}
+
+.ts-model-actions button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.ts-model-actions button[data-action="delete"] {
+  border-color: #ff4d4f;
+  color: #ff4d4f;
+}
+
+.ts-editor-drawer {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(10, 22, 38, 0);
+  pointer-events: none;
+  transition: background 0.18s ease;
+}
+
+.ts-editor-drawer[hidden] {
+  display: none !important;
+}
+
+.ts-editor-drawer.open {
+  background: rgba(10, 22, 38, 0.22);
+  pointer-events: auto;
+}
+
+.ts-editor-panel {
+  width: min(340px, calc(100% - 30px));
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid rgba(74, 144, 217, 0.24);
+  background:
+    linear-gradient(135deg, rgba(30, 140, 255, 0.1), rgba(20, 184, 166, 0.08)),
+    rgba(255, 255, 255, 0.98);
+  box-shadow: -12px 0 28px rgba(15, 82, 186, 0.18);
+  transform: translateX(100%);
+  transition: transform 0.2s ease;
+}
+
+.ts-editor-drawer.open .ts-editor-panel {
+  transform: translateX(0);
+}
+
+.ts-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(74, 144, 217, 0.18);
+}
+
+.ts-editor-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 14px 8px;
+}
+
+.ts-editor-title {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 18px;
+}
+
+.ts-editor-subtitle {
+  color: #667085;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.ts-drawer-close {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(74, 144, 217, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.84);
+  color: #667085;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ts-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  border-top: 1px solid rgba(74, 144, 217, 0.18);
+  background: rgba(255, 255, 255, 0.78);
 }
 
 .ts-field {
@@ -442,13 +831,14 @@
 }
 
 .ts-btn-primary {
-  background: #e8f5e9;
-  color: #2e7d32;
-  border-color: #c8e6c9;
+  background: #1e8cff;
+  color: #fff;
+  border-color: #1e8cff;
+  box-shadow: 0 7px 16px rgba(30, 140, 255, 0.3);
 }
 
 .ts-btn-primary:hover {
-  background: #c8e6c9;
+  background: #3aa0ff;
 }
 
 .ts-btn-danger {
@@ -462,6 +852,17 @@
 
 .ts-btn-danger:hover:not(:disabled) {
   background: #f8bbd0;
+}
+
+.ts-btn-danger-solid {
+  background: #ff4d4f;
+  color: #fff;
+  border-color: #ff4d4f;
+  box-shadow: 0 7px 16px rgba(255, 77, 79, 0.24);
+}
+
+.ts-btn-danger-solid:hover {
+  background: #ff6b6d;
 }
 
 .ts-btn-danger:disabled {
@@ -510,6 +911,69 @@
   opacity: 1;
 }
 
+.ts-confirm {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  border-radius: 12px;
+  background: rgba(10, 22, 38, 0.28);
+  backdrop-filter: blur(4px);
+}
+
+.ts-confirm[hidden] {
+  display: none !important;
+}
+
+.ts-confirm-box {
+  width: min(320px, 100%);
+  padding: 14px;
+  border: 1px solid rgba(30, 140, 255, 0.2);
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgba(30, 140, 255, 0.08), rgba(20, 184, 166, 0.08)),
+    #fff;
+  box-shadow: 0 18px 36px rgba(15, 82, 186, 0.2);
+}
+
+.ts-confirm-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 8px;
+  border-radius: 50%;
+  background: rgba(255, 77, 79, 0.12);
+  color: #ff4d4f;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.ts-confirm-title {
+  color: #1d2939;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 20px;
+}
+
+.ts-confirm-message {
+  margin-top: 4px;
+  color: #667085;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.ts-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
 .translate-settings-panel.dark .ts-toast {
   background: #1b5e20;
   color: #a5d6a7;
@@ -519,9 +983,130 @@
 /* ====== 暗色主题 ====== */
 
 .translate-settings-panel.dark {
-  background: #2d2d2d;
-  border-color: #444;
+  background:
+    linear-gradient(135deg, rgba(30, 140, 255, 0.14), transparent 36%),
+    linear-gradient(315deg, rgba(20, 184, 166, 0.13), transparent 34%),
+    #141414;
+  border-color: rgba(62, 166, 255, 0.28);
   color: #e0e0e0;
+}
+
+.translate-settings-panel.dark .ts-global-card,
+.translate-settings-panel.dark .ts-control-card {
+  border-color: rgba(62, 166, 255, 0.38);
+  background: linear-gradient(135deg, rgba(17, 53, 86, 0.88), rgba(9, 55, 49, 0.88));
+}
+
+.translate-settings-panel.dark .ts-global-item span {
+  color: #bfd2e5;
+}
+
+.translate-settings-panel.dark .ts-global-item input {
+  background: rgba(16, 24, 32, 0.92);
+  border-color: rgba(62, 166, 255, 0.28);
+  color: #e8f2ff;
+}
+
+.translate-settings-panel.dark .ts-global-toggle {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(62, 166, 255, 0.32);
+  color: #66b8ff;
+}
+
+.translate-settings-panel.dark .ts-global-head:hover {
+  background: rgba(62, 166, 255, 0.12);
+}
+
+.translate-settings-panel.dark .ts-control-subtitle,
+.translate-settings-panel.dark .ts-section-subtitle,
+.translate-settings-panel.dark .ts-empty,
+.translate-settings-panel.dark .ts-model-url {
+  color: #8ca3b8;
+}
+
+.translate-settings-panel.dark .ts-segmented {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(62, 166, 255, 0.28);
+}
+
+.translate-settings-panel.dark .ts-segmented button {
+  color: #a8bed4;
+}
+
+.translate-settings-panel.dark .ts-segmented button.active {
+  color: #fff;
+}
+
+.translate-settings-panel.dark .ts-model-item {
+  border-color: rgba(62, 166, 255, 0.28);
+  background:
+    linear-gradient(135deg, rgba(19, 33, 51, 0.96), rgba(13, 31, 36, 0.96)),
+    radial-gradient(circle at top right, rgba(30, 140, 255, 0.18), transparent 34%);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+}
+
+.translate-settings-panel.dark .ts-editor-drawer.open {
+  background: rgba(0, 0, 0, 0.42);
+}
+
+.translate-settings-panel.dark .ts-editor-panel {
+  border-left-color: rgba(62, 166, 255, 0.28);
+  background:
+    linear-gradient(135deg, rgba(30, 140, 255, 0.14), rgba(20, 184, 166, 0.1)),
+    #182331;
+  box-shadow: -14px 0 32px rgba(0, 0, 0, 0.36);
+}
+
+.translate-settings-panel.dark .ts-editor-header,
+.translate-settings-panel.dark .ts-editor-actions {
+  border-color: rgba(62, 166, 255, 0.22);
+}
+
+.translate-settings-panel.dark .ts-editor-actions {
+  background: rgba(15, 24, 36, 0.86);
+}
+
+.translate-settings-panel.dark .ts-editor-subtitle {
+  color: #8ca3b8;
+}
+
+.translate-settings-panel.dark .ts-drawer-close {
+  background: #101820;
+  border-color: rgba(62, 166, 255, 0.32);
+  color: #a8bed4;
+}
+
+.translate-settings-panel.dark .ts-confirm {
+  background: rgba(0, 0, 0, 0.42);
+}
+
+.translate-settings-panel.dark .ts-confirm-box {
+  border-color: rgba(62, 166, 255, 0.28);
+  background:
+    linear-gradient(135deg, rgba(30, 140, 255, 0.16), rgba(20, 184, 166, 0.12)),
+    #182331;
+  box-shadow: 0 20px 42px rgba(0, 0, 0, 0.36);
+}
+
+.translate-settings-panel.dark .ts-confirm-title {
+  color: #f5f8ff;
+}
+
+.translate-settings-panel.dark .ts-confirm-message {
+  color: #9fb3c8;
+}
+
+.translate-settings-panel.dark .ts-model-meta {
+  color: #bfd2e5;
+}
+
+.translate-settings-panel.dark .ts-model-meta b {
+  color: #66b8ff;
+}
+
+.translate-settings-panel.dark .ts-model-actions button {
+  background: #101820;
+  border-color: rgba(62, 166, 255, 0.4);
 }
 
 .translate-settings-panel.dark .ts-header {
@@ -576,13 +1161,13 @@
 }
 
 .translate-settings-panel.dark .ts-btn-primary {
-  background: #1b5e20;
-  color: #a5d6a7;
-  border-color: #2e7d32;
+  background: #1e8cff;
+  color: #fff;
+  border-color: #1e8cff;
 }
 
 .translate-settings-panel.dark .ts-btn-primary:hover {
-  background: #2e7d32;
+  background: #3aa0ff;
 }
 
 .translate-settings-panel.dark .ts-btn-danger {

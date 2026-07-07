@@ -55,12 +55,18 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'sync') return
   if (changes.triggerMode) {
     triggerMode = changes.triggerMode.newValue || 'click'
+    if (triggerMode === 'disabled') close()
   }
   if (changes.theme) {
-    const dark = changes.theme.newValue === 'dark'
-    if (settingsBtn) settingsBtn.classList.toggle('dark', dark)
-    const panel = document.querySelector('.translate-settings-panel')
-    if (panel) panel.classList.toggle('dark', dark)
+    getTheme().then(themeClass => {
+      const dark = themeClass === 'dark'
+      if (settingsBtn) settingsBtn.classList.toggle('dark', dark)
+      const panel = document.querySelector('.translate-settings-panel')
+      if (panel) panel.classList.toggle('dark', dark)
+    })
+  }
+  if (changes.globalSettingsCollapsed) {
+    tsSetGlobalCollapsed(Boolean(changes.globalSettingsCollapsed.newValue))
   }
 })
 
@@ -274,6 +280,7 @@ async function showBubble(text) {
 }
 
 function checkSelection() {
+  if (triggerMode === 'disabled') return
   if (isDragging) return
   const text = getSelectionText()
   if (!text || text === currentText) return
@@ -307,6 +314,9 @@ function injectSettingsButton() {
 
   const iconUrl = chrome.runtime.getURL('icons/icon48.png')
   settingsBtn.innerHTML = `<img src="${iconUrl}" width="28" height="28" alt="AI 翻译">`
+  getTheme().then(themeClass => {
+    if (settingsBtn) settingsBtn.classList.toggle('dark', themeClass === 'dark')
+  })
 
   // 默认位置（右下角），后面 restore 会覆盖
   settingsBtn.style.right = '20px'
@@ -450,6 +460,21 @@ const PROVIDER_NAMES = { deepseek: 'DeepSeek', bailian: '阿里云百炼', zhipu
 
 function $(id) { return document.getElementById(id) }
 
+const TS_PROVIDER_DEFAULTS = {
+  deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', locked: true },
+  bailian:  { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', locked: true },
+  zhipu:    { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.2', locked: true },
+  openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', locked: false },
+  ollama:   { baseUrl: 'http://localhost:11434/v1', model: 'llama3.1', locked: false }
+}
+
+const TS_ICONS = {
+  check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>',
+  chevron: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>'
+}
+
 async function showSettingsPanel() {
   if (document.querySelector('.translate-settings-panel')) return
 
@@ -464,62 +489,110 @@ async function showSettingsPanel() {
       <button class="ts-close" id="tsClose">✕</button>
     </div>
     <div class="ts-body">
-      <div class="ts-field">
-        <label>LLM 提供商</label>
-        <select id="ts-provider">
-          <option value="deepseek">DeepSeek</option>
-          <option value="bailian">阿里云百炼</option>
-          <option value="zhipu">智谱 AI</option>
-          <option value="openai">OpenAI 兼容</option>
-          <option value="ollama">Ollama</option>
-        </select>
-      </div>
-      <div class="ts-field">
-        <label>API Key</label>
-        <div class="ts-input-group">
-          <input type="password" id="ts-apiKey" spellcheck="false" />
-          <button class="ts-eye" id="tsToggleKey" title="显示/隐藏">👁</button>
+      <div class="ts-global-card">
+        <div class="ts-global-head" id="tsGlobalHead" title="展开/收起全局设置">
+          <div>
+            <div class="ts-control-title">全局设置</div>
+            <div class="ts-control-subtitle">独立于模型预设</div>
+          </div>
+          <button type="button" class="ts-global-toggle" id="tsGlobalToggle" title="展开/收起全局设置" aria-expanded="true">${TS_ICONS.chevron}</button>
+        </div>
+        <div class="ts-global-grid">
+          <div class="ts-global-item">
+            <span>主题</span>
+            <div class="ts-segmented" id="ts-theme-segment">
+              <button data-value="system">系统</button>
+              <button data-value="light">浅色</button>
+              <button data-value="dark">深色</button>
+            </div>
+          </div>
+          <div class="ts-global-item ts-global-wide">
+            <span>翻译触发</span>
+            <div class="ts-segmented ts-segmented-wide" id="ts-trigger-segment">
+              <button data-value="click">点击图标</button>
+              <button data-value="immediate">立即翻译</button>
+              <button data-value="disabled">不翻译</button>
+            </div>
+          </div>
+          <div class="ts-global-item ts-global-wide">
+            <span>目标语言</span>
+            <input type="text" id="ts-globalTargetLang" placeholder="中文" />
+          </div>
         </div>
       </div>
-      <div class="ts-field">
-        <label>API 端点</label>
-        <input type="text" id="ts-baseUrl" spellcheck="false" />
+
+      <div class="ts-model-head">
+        <div>
+          <div class="ts-section-title">模型预设</div>
+          <div class="ts-section-subtitle" id="tsPresetCount">0 个配置</div>
+        </div>
+        <button class="ts-btn ts-btn-primary" id="tsAddPreset">＋ 新增</button>
       </div>
-      <div class="ts-field">
-        <label>模型名称（模型ID）</label>
-        <input type="text" id="ts-model" spellcheck="false" />
-      </div>
-      <div class="ts-field">
-        <label>目标语言</label>
-        <input type="text" id="ts-targetLang" />
-      </div>
-      <div class="ts-field">
-        <label>翻译触发时机</label>
-        <select id="ts-triggerMode">
-          <option value="click">点击图标时翻译</option>
-          <option value="immediate">选中后立刻翻译</option>
-        </select>
-      </div>
-      <div class="ts-field">
-        <label>主题</label>
-        <select id="ts-theme">
-          <option value="system">跟随系统</option>
-          <option value="light">浅色</option>
-          <option value="dark">深色</option>
-        </select>
-      </div>
-      <div class="ts-field ts-checkbox-row">
-        <label><input type="checkbox" id="ts-disableThinking" checked /><span>禁用深度思考模式</span></label>
-      </div>
-      <div class="ts-divider"></div>
-      <div class="ts-field">
-        <label>配置预设</label>
-        <div class="ts-row"><input type="text" id="ts-presetName" placeholder="输入新预设名称…" /><button class="ts-btn ts-btn-primary" id="tsSavePreset">保存</button></div>
-        <div class="ts-row"><select id="ts-presetSelect"><option value="">— 载入已存预设 —</option></select><button class="ts-btn ts-btn-danger" id="tsDelPreset" disabled>✕</button></div>
-      </div>
-      <div class="ts-divider"></div>
-      <div class="ts-status" id="tsStatus"></div>
+
+      <div class="ts-model-list" id="tsPresetList"></div>
     </div>
+    <div class="ts-editor-drawer" id="tsEditor" hidden>
+      <div class="ts-editor-panel">
+        <div class="ts-editor-header">
+          <div>
+            <div class="ts-editor-title" id="tsEditorTitle">新增模型预设</div>
+            <div class="ts-editor-subtitle">模型信息将保存到预设列表</div>
+          </div>
+          <button class="ts-drawer-close" id="tsCancelEdit" title="关闭">✕</button>
+        </div>
+        <div class="ts-editor-body">
+        <div class="ts-field">
+          <label>预设名称</label>
+          <input type="text" id="ts-presetName" placeholder="例如：内网 Ollama" />
+        </div>
+        <div class="ts-field">
+          <label>LLM 提供商</label>
+          <select id="ts-provider">
+            <option value="deepseek">DeepSeek</option>
+            <option value="bailian">阿里云百炼</option>
+            <option value="zhipu">智谱 AI</option>
+            <option value="openai">OpenAI 兼容</option>
+            <option value="ollama">Ollama</option>
+          </select>
+        </div>
+        <div class="ts-field">
+          <label>API Key</label>
+          <div class="ts-input-group">
+            <input type="password" id="ts-apiKey" spellcheck="false" />
+            <button class="ts-eye" id="tsToggleKey" title="显示/隐藏">👁</button>
+          </div>
+        </div>
+        <div class="ts-field">
+          <label>API 端点</label>
+          <input type="text" id="ts-baseUrl" spellcheck="false" />
+        </div>
+        <div class="ts-field">
+          <label>模型名称（模型ID）</label>
+          <input type="text" id="ts-model" spellcheck="false" />
+        </div>
+        <div class="ts-field ts-checkbox-row">
+          <label><input type="checkbox" id="ts-disableThinking" checked /><span>禁用深度思考模式</span></label>
+        </div>
+        </div>
+        <div class="ts-editor-actions">
+          <button class="ts-btn" id="tsCancelEditor">取消</button>
+          <button class="ts-btn ts-btn-primary" id="tsSavePreset">保存</button>
+        </div>
+      </div>
+    </div>
+    <div class="ts-confirm" id="tsConfirm" hidden>
+        <div class="ts-confirm-box">
+          <div class="ts-confirm-icon">!</div>
+          <div class="ts-confirm-content">
+            <div class="ts-confirm-title">删除模型预设</div>
+            <div class="ts-confirm-message" id="tsConfirmMessage">确定删除该预设吗？</div>
+          </div>
+          <div class="ts-confirm-actions">
+            <button class="ts-btn" id="tsConfirmCancel">取消</button>
+            <button class="ts-btn ts-btn-danger-solid" id="tsConfirmOk">删除</button>
+          </div>
+        </div>
+      </div>
   `
 
   overlay.appendChild(panel)
@@ -527,8 +600,6 @@ async function showSettingsPanel() {
 
   positionSettingsPanel(panel)
   await loadTsConfig()
-  // 加载后根据主题设置面板暗色样式
-  if ($('ts-theme').value === 'dark') panel.classList.add('dark')
   setupTsListeners()
 
   // 点击遮罩关闭
@@ -544,7 +615,7 @@ function closeSettingsPanel() {
 
 function positionSettingsPanel(panel) {
   const btnRect = settingsBtn.getBoundingClientRect()
-  const pw = 340
+  const pw = Math.min(380, window.innerWidth - 20)
   const gap = 12
   const margin = 10
 
@@ -580,35 +651,45 @@ function positionSettingsPanel(panel) {
 async function loadTsConfig() {
   const cfg = await chrome.storage.sync.get({
     provider: 'deepseek', apiKey: '', baseUrl: '', model: '',
-    targetLang: '中文', theme: 'system', disableThinking: true, triggerMode: 'click'
+    targetLang: '中文', theme: 'system', disableThinking: true, triggerMode: 'click', globalSettingsCollapsed: false
   })
-  // 先应用提供商默认值（disabled 状态、placeholder）
+  tsSetSegmentValue('ts-theme-segment', cfg.theme || 'system')
+  tsSetSegmentValue('ts-trigger-segment', cfg.triggerMode || 'click')
+  $('ts-globalTargetLang').value = cfg.targetLang || '中文'
+  tsSetGlobalCollapsed(Boolean(cfg.globalSettingsCollapsed))
+  const panel = document.querySelector('.translate-settings-panel')
+  if (panel) {
+    const themeClass = await getTheme()
+    panel.classList.toggle('dark', themeClass === 'dark')
+  }
   tsUpdatePlaceholders(cfg.provider)
-  // 再从 storage 覆盖（保留用户自定义的 API 端点、模型等）
   $('ts-provider').value = cfg.provider
   $('ts-apiKey').value = cfg.apiKey
   $('ts-baseUrl').value = cfg.baseUrl
   $('ts-model').value = cfg.model
-  $('ts-targetLang').value = cfg.targetLang
-  $('ts-theme').value = cfg.theme
   $('ts-disableThinking').checked = cfg.disableThinking
-  $('ts-triggerMode').value = cfg.triggerMode
   refreshTsPresets()
 }
 
-async function tsSaveConfig() {
-  const config = {
+function tsGetEditorConfig() {
+  return {
     provider: $('ts-provider').value,
     apiKey: $('ts-apiKey').value,
     baseUrl: $('ts-baseUrl').value,
     model: $('ts-model').value,
-    targetLang: $('ts-targetLang').value,
-    theme: $('ts-theme').value,
-    disableThinking: $('ts-disableThinking').checked,
-    triggerMode: $('ts-triggerMode').value
+    disableThinking: $('ts-disableThinking').checked
+  }
+}
+
+async function tsApplyPreset(preset) {
+  const state = await chrome.storage.sync.get({ theme: 'system', triggerMode: 'click', targetLang: '中文' })
+  const config = {
+    ...preset,
+    theme: state.theme || 'system',
+    triggerMode: state.triggerMode || 'click',
+    targetLang: state.targetLang || '中文'
   }
   await chrome.storage.sync.set(config)
-  tsStatus('配置已保存')
 }
 
 function tsStatus(msg) {
@@ -633,14 +714,7 @@ function tsStatus(msg) {
 }
 
 function tsUpdatePlaceholders(provider, resetValues = false) {
-  const defaults = {
-    deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', locked: true },
-    bailian:  { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', locked: true },
-    zhipu:    { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.2', locked: true },
-    openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', locked: false },
-    ollama:   { baseUrl: 'http://localhost:11434/v1', model: 'llama3.1', locked: false }
-  }
-  const d = defaults[provider] || defaults.openai
+  const d = TS_PROVIDER_DEFAULTS[provider] || TS_PROVIDER_DEFAULTS.openai
   $('ts-baseUrl').disabled = d.locked
   $('ts-baseUrl').value = d.baseUrl
   $('ts-model').placeholder = d.model
@@ -648,15 +722,47 @@ function tsUpdatePlaceholders(provider, resetValues = false) {
 }
 
 async function refreshTsPresets(selected) {
-  const presets = await chrome.storage.sync.get({ translationPresets: {} }).then(r => r.translationPresets)
-  const sel = $('ts-presetSelect')
-  sel.innerHTML = '<option value="">— 载入已存预设 —</option>'
-  Object.keys(presets).forEach(n => {
-    const o = document.createElement('option')
-    o.value = n; o.textContent = n; sel.appendChild(o)
+  const state = await chrome.storage.sync.get({
+    translationPresets: {},
+    activePresetName: '',
+    provider: '', apiKey: '', baseUrl: '', model: '', disableThinking: true
   })
-  if (selected && presets[selected]) sel.value = selected
-  $('tsDelPreset').disabled = !sel.value
+  const presets = state.translationPresets || {}
+  const list = $('tsPresetList')
+  const count = $('tsPresetCount')
+  const rows = Object.keys(presets)
+    .map((name, index) => ({ name, index, ...presets[name] }))
+    .sort((a, b) => {
+      const activeDelta = Number(tsIsActivePreset(b, state)) - Number(tsIsActivePreset(a, state))
+      return activeDelta || a.index - b.index
+    })
+
+  count.textContent = `${rows.length} 个配置`
+  list.innerHTML = rows.length ? '' : '<div class="ts-empty">暂无模型预设</div>'
+  rows.forEach(row => {
+    const item = document.createElement('div')
+    item.className = 'ts-model-item'
+    item.innerHTML = `
+      <div class="ts-model-main">
+        <div class="ts-model-title">
+          <span>${tsEscape(row.name)}</span>
+          ${tsIsActivePreset(row, state) ? '<em>使用中</em>' : ''}
+        </div>
+        <div class="ts-model-meta"><b>${PROVIDER_NAMES[row.provider] || row.provider || '未知平台'}</b><span>${tsEscape(row.model || '未配置模型')}</span></div>
+        <div class="ts-model-url">${tsEscape(row.baseUrl || '未配置 API 端点')}</div>
+      </div>
+      <div class="ts-model-actions">
+        <button title="设为使用" data-action="use" data-name="${tsEscapeAttr(row.name)}">${TS_ICONS.check}</button>
+        <button title="编辑" data-action="edit" data-name="${tsEscapeAttr(row.name)}">${TS_ICONS.edit}</button>
+        <button title="删除" data-action="delete" data-name="${tsEscapeAttr(row.name)}">${TS_ICONS.trash}</button>
+      </div>
+    `
+    list.appendChild(item)
+  })
+
+  if (selected && presets[selected]) {
+    await tsOpenEditor(selected, presets[selected])
+  }
 }
 
 async function tsLoadPreset(name) {
@@ -665,16 +771,8 @@ async function tsLoadPreset(name) {
   const p = presets[name]
   if (!p) return
 
-  const PROVIDER_DEFAULTS = {
-    deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', locked: true },
-    bailian:  { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', locked: true },
-    zhipu:    { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.2', locked: true },
-    openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', locked: false },
-    ollama:   { baseUrl: 'http://localhost:11434/v1', model: 'llama3.1', locked: false }
-  }
-
   const provider = p.provider || 'openai'
-  const d = PROVIDER_DEFAULTS[provider] || PROVIDER_DEFAULTS.openai
+  const d = TS_PROVIDER_DEFAULTS[provider] || TS_PROVIDER_DEFAULTS.openai
 
   $('ts-provider').value = provider
   $('ts-baseUrl').disabled = d.locked
@@ -682,11 +780,118 @@ async function tsLoadPreset(name) {
   $('ts-model').value = p.model || d.model
   $('ts-model').placeholder = d.model
   $('ts-apiKey').value = p.apiKey || ''
-  $('ts-targetLang').value = p.targetLang || '中文'
   $('ts-disableThinking').checked = p.disableThinking !== false
 
-  await tsSaveConfig()
+  await tsApplyPreset(tsGetEditorConfig())
   tsStatus(`已载入预设「${name}」`)
+}
+
+function tsIsActivePreset(preset, state) {
+  if (state.activePresetName) return state.activePresetName === preset.name
+  const keys = ['provider', 'apiKey', 'baseUrl', 'model']
+  return keys.every(k => (preset[k] || '') === (state[k] || '')) &&
+    (preset.disableThinking !== false) === (state.disableThinking !== false)
+}
+
+function tsSetSegmentValue(id, value) {
+  const segment = $(id)
+  if (!segment) return
+  segment.querySelectorAll('button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.value === value)
+  })
+}
+
+function tsSetGlobalCollapsed(collapsed) {
+  const card = document.querySelector('.translate-settings-panel .ts-global-card')
+  const toggle = $('tsGlobalToggle')
+  if (!card || !toggle) return
+  card.classList.toggle('collapsed', collapsed)
+  toggle.setAttribute('aria-expanded', String(!collapsed))
+}
+
+function tsEscape(value) {
+  return String(value || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]))
+}
+
+function tsEscapeAttr(value) {
+  return tsEscape(value).replace(/`/g, '&#96;')
+}
+
+async function tsOpenEditor(name = '', preset = null) {
+  const editor = $('tsEditor')
+  editor.hidden = false
+  requestAnimationFrame(() => editor.classList.add('open'))
+  editor.dataset.mode = name ? 'edit' : 'add'
+  editor.dataset.editingName = name
+  $('tsEditorTitle').textContent = name ? '编辑模型预设' : '新增模型预设'
+
+  const p = preset || {
+    provider: 'deepseek',
+    apiKey: '',
+    baseUrl: TS_PROVIDER_DEFAULTS.deepseek.baseUrl,
+    model: TS_PROVIDER_DEFAULTS.deepseek.model,
+    disableThinking: true
+  }
+  $('ts-presetName').value = name
+  $('ts-provider').value = p.provider || 'deepseek'
+  tsUpdatePlaceholders($('ts-provider').value)
+  $('ts-apiKey').value = p.apiKey || ''
+  $('ts-baseUrl').value = p.baseUrl || TS_PROVIDER_DEFAULTS[$('ts-provider').value].baseUrl
+  $('ts-model').value = p.model || TS_PROVIDER_DEFAULTS[$('ts-provider').value].model
+  $('ts-disableThinking').checked = p.disableThinking !== false
+}
+
+function tsCloseEditor() {
+  const editor = $('tsEditor')
+  if (!editor) return
+  editor.classList.remove('open')
+  setTimeout(() => {
+    if (!editor.classList.contains('open')) editor.hidden = true
+  }, 180)
+}
+
+async function tsSaveTargetLang(showSaved = true) {
+  const input = $('ts-globalTargetLang')
+  if (!input) return
+  const targetLang = input.value.trim() || '中文'
+  input.value = targetLang
+  await chrome.storage.sync.set({ targetLang })
+  if (showSaved) tsStatus('目标语言已更新')
+}
+
+async function tsToggleGlobalSettings() {
+  const card = document.querySelector('.translate-settings-panel .ts-global-card')
+  if (!card) return
+  const collapsed = !card.classList.contains('collapsed')
+  tsSetGlobalCollapsed(collapsed)
+  await chrome.storage.sync.set({ globalSettingsCollapsed: collapsed })
+}
+
+function tsShowDeleteConfirm(name) {
+  const confirm = $('tsConfirm')
+  if (!confirm) return
+  confirm.dataset.name = name
+  $('tsConfirmMessage').textContent = `确定删除「${name}」吗？删除后无法恢复。`
+  confirm.hidden = false
+}
+
+function tsHideDeleteConfirm() {
+  const confirm = $('tsConfirm')
+  if (!confirm) return
+  confirm.hidden = true
+  confirm.dataset.name = ''
+}
+
+async function tsDeletePreset(name) {
+  if (!name) return
+  const presets = await chrome.storage.sync.get({ translationPresets: {} }).then(r => r.translationPresets)
+  if (!presets[name]) return
+  delete presets[name]
+  await chrome.storage.sync.set({ translationPresets: presets })
+  const active = await chrome.storage.sync.get({ activePresetName: '' })
+  if (active.activePresetName === name) await chrome.storage.sync.set({ activePresetName: '' })
+  await refreshTsPresets()
+  tsStatus('预设已删除')
 }
 
 function setupTsListeners() {
@@ -694,7 +899,6 @@ function setupTsListeners() {
 
   $('ts-provider').addEventListener('change', function () {
     tsUpdatePlaceholders(this.value, true)
-    tsSaveConfig()
   })
 
   $('tsToggleKey').addEventListener('click', () => {
@@ -702,53 +906,106 @@ function setupTsListeners() {
     inp.type = inp.type === 'password' ? 'text' : 'password'
   })
 
-  // 主题切换时即时更新面板暗色样式
-  $('ts-theme').addEventListener('change', function () {
-    const p = this.closest('.translate-settings-panel')
-    if (p) p.classList.toggle('dark', this.value === 'dark')
+  $('ts-theme-segment').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-value]')
+    if (!btn) return
+    const theme = btn.dataset.value
+    await chrome.storage.sync.set({ theme })
+    tsSetSegmentValue('ts-theme-segment', theme)
+    const p = btn.closest('.translate-settings-panel')
+    if (p) {
+      const themeClass = await getTheme()
+      p.classList.toggle('dark', themeClass === 'dark')
+    }
+    tsStatus('主题已更新')
   })
 
-  // Auto-save on change
-  ;['ts-apiKey', 'ts-baseUrl', 'ts-model', 'ts-targetLang', 'ts-theme', 'ts-triggerMode'].forEach(id => {
-    const el = $(id)
-    el.addEventListener('change', tsSaveConfig)
-    el.addEventListener('input', () => {
-      clearTimeout(el._saveTimer)
-      el._saveTimer = setTimeout(tsSaveConfig, 500)
-    })
+  $('ts-trigger-segment').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-value]')
+    if (!btn) return
+    const triggerMode = btn.dataset.value
+    window.getSelection()?.removeAllRanges()
+    if (triggerMode === 'disabled') close()
+    await chrome.storage.sync.set({ triggerMode })
+    tsSetSegmentValue('ts-trigger-segment', triggerMode)
+    tsStatus('触发方式已更新')
   })
 
-  $('ts-disableThinking').addEventListener('change', tsSaveConfig)
+  $('tsGlobalHead').addEventListener('click', (e) => {
+    e.preventDefault()
+    tsToggleGlobalSettings()
+  })
+  $('tsGlobalToggle').addEventListener('click', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    tsToggleGlobalSettings()
+  })
 
-  // Presets
+  $('ts-globalTargetLang').addEventListener('change', () => tsSaveTargetLang())
+  $('ts-globalTargetLang').addEventListener('input', (e) => {
+    clearTimeout(e.currentTarget._saveTimer)
+    e.currentTarget._saveTimer = setTimeout(() => tsSaveTargetLang(false), 500)
+  })
+
+  $('tsAddPreset').addEventListener('click', () => tsOpenEditor())
+  $('tsCancelEdit').addEventListener('click', tsCloseEditor)
+  $('tsCancelEditor').addEventListener('click', tsCloseEditor)
+  $('tsEditor').addEventListener('click', (e) => {
+    if (e.target === $('tsEditor')) tsCloseEditor()
+  })
+
+  $('tsPresetList').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-action]')
+    if (!btn) return
+    const name = btn.dataset.name
+    const presets = await chrome.storage.sync.get({ translationPresets: {} }).then(r => r.translationPresets)
+    const preset = presets[name]
+    if (!preset) return
+    if (btn.dataset.action === 'use') {
+      await tsApplyPreset(preset)
+      await chrome.storage.sync.set({ activePresetName: name })
+      await refreshTsPresets()
+      tsStatus(`已使用「${name}」`)
+    } else if (btn.dataset.action === 'edit') {
+      await tsOpenEditor(name, preset)
+    } else if (btn.dataset.action === 'delete') {
+      tsShowDeleteConfirm(name)
+    }
+  })
+
+  $('tsConfirmCancel').addEventListener('click', tsHideDeleteConfirm)
+  $('tsConfirm').addEventListener('click', (e) => {
+    if (e.target === $('tsConfirm')) tsHideDeleteConfirm()
+  })
+  $('tsConfirmOk').addEventListener('click', async () => {
+    const name = $('tsConfirm').dataset.name || ''
+    await tsDeletePreset(name)
+    tsHideDeleteConfirm()
+  })
+
   $('tsSavePreset').addEventListener('click', async () => {
     const name = $('ts-presetName').value.trim()
     if (!name) { $('ts-presetName').focus(); return }
+    const editor = $('tsEditor')
+    const editingName = editor.dataset.editingName || ''
+    const mode = editor.dataset.mode || 'add'
     const presets = await chrome.storage.sync.get({ translationPresets: {} }).then(r => r.translationPresets)
-    presets[name] = {
-      provider: $('ts-provider').value, apiKey: $('ts-apiKey').value,
-      baseUrl: $('ts-baseUrl').value, model: $('ts-model').value,
-      targetLang: $('ts-targetLang').value, disableThinking: $('ts-disableThinking').checked
+    if (mode === 'add' && presets[name]) { tsStatus('预设名称已存在'); return }
+    if (mode === 'edit' && name !== editingName && presets[name]) { tsStatus('预设名称已存在'); return }
+
+    if (mode === 'edit' && editingName && editingName !== name) delete presets[editingName]
+    presets[name] = tsGetEditorConfig()
+    await chrome.storage.sync.set({ translationPresets: presets })
+
+    const active = await chrome.storage.sync.get({ activePresetName: '' })
+    if (active.activePresetName === editingName) {
+      await chrome.storage.sync.set({ activePresetName: name })
+      await tsApplyPreset(presets[name])
     }
-    await chrome.storage.sync.set({ translationPresets: presets })
-    $('ts-presetName').value = ''
-    await refreshTsPresets(name)
-    tsStatus(`预设「${name}」已保存`)
-  })
 
-  $('ts-presetSelect').addEventListener('change', function () {
-    $('tsDelPreset').disabled = !this.value
-    if (this.value) tsLoadPreset(this.value)
-  })
-
-  $('tsDelPreset').addEventListener('click', async () => {
-    const name = $('ts-presetSelect').value
-    if (!name || !confirm(`确定删除预设「${name}」吗？`)) return
-    const presets = await chrome.storage.sync.get({ translationPresets: {} }).then(r => r.translationPresets)
-    delete presets[name]
-    await chrome.storage.sync.set({ translationPresets: presets })
+    tsCloseEditor()
     await refreshTsPresets()
-    tsStatus(`预设「${name}」已删除`)
+    tsStatus(mode === 'edit' ? '预设已更新' : '预设已新增')
   })
 }
 

@@ -63,7 +63,6 @@ export async function savePreset(name, config) {
     apiKey: config.apiKey || '',
     baseUrl: config.baseUrl || '',
     model: config.model || '',
-    targetLang: config.targetLang || '中文',
     disableThinking: config.disableThinking !== false
   }
   await chrome.storage.sync.set({ [PRESETS_KEY]: presets })

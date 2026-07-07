@@ -67,7 +67,7 @@ function setCache(text, result) {
 async function getConfig() {
   const DEFAULTS = {
     provider: 'deepseek', apiKey: '', baseUrl: '', model: '',
-    targetLang: '简体中文', theme: 'system', disableThinking: true
+    targetLang: '中文', theme: 'system', disableThinking: true
   }
   const result = await chrome.storage.sync.get(DEFAULTS)
   const defaults = PROVIDER_DEFAULTS[result.provider]
