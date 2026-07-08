@@ -516,6 +516,61 @@ const TS_PROVIDER_DEFAULTS = {
   openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', locked: false },
   ollama:   { baseUrl: 'http://localhost:11434/v1', model: 'llama3.1', locked: false }
 }
+const TS_DEFAULT_TARGET_LANGUAGE = '简体中文'
+
+const TS_LANGUAGE_OPTIONS = [
+  { label: '简体中文（Chinese Simplified）', value: '简体中文' },
+  { label: '繁体中文（Chinese Traditional）', value: '繁体中文' },
+  { label: '英文（English）', value: '英文' },
+  { label: '日语（日本語）', value: '日语' },
+  { label: '韩语（한국어）', value: '韩语' },
+  { label: '法语（Français）', value: '法语' },
+  { label: '德语（Deutsch）', value: '德语' },
+  { label: '西班牙语（Español）', value: '西班牙语' },
+  { label: '俄语（Русский）', value: '俄语' },
+  { label: '葡萄牙语（Português）', value: '葡萄牙语' },
+  { label: '意大利语（Italiano）', value: '意大利语' },
+  { label: '阿拉伯语（العربية）', value: '阿拉伯语' },
+  { label: '印地语（हिन्दी）', value: '印地语' },
+  { label: '印尼语（Bahasa Indonesia）', value: '印尼语' },
+  { label: '越南语（Tiếng Việt）', value: '越南语' },
+  { label: '泰语（ไทย）', value: '泰语' },
+  { label: '马来语（Bahasa Melayu）', value: '马来语' },
+  { label: '土耳其语（Türkçe）', value: '土耳其语' },
+  { label: '荷兰语（Nederlands）', value: '荷兰语' },
+  { label: '波兰语（Polski）', value: '波兰语' },
+  { label: '乌克兰语（Українська）', value: '乌克兰语' },
+  { label: '希腊语（Ελληνικά）', value: '希腊语' },
+  { label: '瑞典语（Svenska）', value: '瑞典语' },
+  { label: '挪威语（Norsk）', value: '挪威语' },
+  { label: '丹麦语（Dansk）', value: '丹麦语' },
+  { label: '芬兰语（Suomi）', value: '芬兰语' },
+  { label: '捷克语（Čeština）', value: '捷克语' },
+  { label: '匈牙利语（Magyar）', value: '匈牙利语' },
+  { label: '罗马尼亚语（Română）', value: '罗马尼亚语' },
+  { label: '保加利亚语（Български）', value: '保加利亚语' },
+  { label: '克罗地亚语（Hrvatski）', value: '克罗地亚语' },
+  { label: '斯洛伐克语（Slovenčina）', value: '斯洛伐克语' },
+  { label: '斯洛文尼亚语（Slovenščina）', value: '斯洛文尼亚语' },
+  { label: '塞尔维亚语（Српски）', value: '塞尔维亚语' },
+  { label: '希伯来语（עברית）', value: '希伯来语' },
+  { label: '波斯语（فارسی）', value: '波斯语' },
+  { label: '乌尔都语（اردو）', value: '乌尔都语' },
+  { label: '孟加拉语（বাংলা）', value: '孟加拉语' },
+  { label: '泰米尔语（தமிழ்）', value: '泰米尔语' },
+  { label: '泰卢固语（తెలుగు）', value: '泰卢固语' },
+  { label: '马拉地语（मराठी）', value: '马拉地语' },
+  { label: '古吉拉特语（ગુજરાતી）', value: '古吉拉特语' },
+  { label: '菲律宾语（Filipino）', value: '菲律宾语' },
+  { label: '缅甸语（မြန်မာ）', value: '缅甸语' },
+  { label: '高棉语（ភាសាខ្មែរ）', value: '高棉语' },
+  { label: '老挝语（ລາວ）', value: '老挝语' },
+  { label: '尼泊尔语（नेपाली）', value: '尼泊尔语' },
+  { label: '僧伽罗语（සිංහල）', value: '僧伽罗语' },
+  { label: '斯瓦希里语（Kiswahili）', value: '斯瓦希里语' },
+  { label: '南非荷兰语（Afrikaans）', value: '南非荷兰语' },
+  { label: '拉丁语（Latina）', value: '拉丁语' }
+]
 
 async function showSettingsPanel() {
   if (document.querySelector('.translate-settings-panel')) return
@@ -558,7 +613,11 @@ async function showSettingsPanel() {
           </div>
           <div class="ts-global-item ts-global-wide">
             <span>目标语言</span>
-            <input type="text" id="ts-globalTargetLang" placeholder="中文" />
+            <div class="ts-lang-select" id="ts-globalTargetLangSelect">
+              <input type="text" id="ts-globalTargetLang" placeholder="简体中文（Chinese Simplified）" autocomplete="off" />
+              <button type="button" class="ts-lang-toggle" id="ts-globalTargetLangToggle" title="展开语言列表" aria-label="展开语言列表">${UI_ICONS.chevron}</button>
+              <div class="ts-lang-dropdown" id="ts-globalTargetLangDropdown" hidden></div>
+            </div>
           </div>
           <div class="ts-global-item">
             <span>悬浮按钮</span>
@@ -700,13 +759,13 @@ function positionSettingsPanel(panel) {
 async function loadTsConfig() {
   const cfg = await chrome.storage.sync.get({
     provider: 'deepseek', apiKey: '', baseUrl: '', model: '',
-    targetLang: '中文', theme: 'system', disableThinking: true, triggerMode: 'click',
+    targetLang: TS_DEFAULT_TARGET_LANGUAGE, theme: 'system', disableThinking: true, triggerMode: 'click',
     floatingButtonVisible: true, globalSettingsCollapsed: false
   })
   tsSetSegmentValue('ts-theme-segment', cfg.theme || 'system')
   tsSetSegmentValue('ts-trigger-segment', cfg.triggerMode || 'click')
   tsSetFloatingButtonVisible(cfg.floatingButtonVisible !== false)
-  $('ts-globalTargetLang').value = cfg.targetLang || '中文'
+  tsSetTargetLangValue(cfg.targetLang || TS_DEFAULT_TARGET_LANGUAGE)
   tsSetGlobalCollapsed(Boolean(cfg.globalSettingsCollapsed))
   const panel = document.querySelector('.translate-settings-panel')
   if (panel) {
@@ -733,12 +792,12 @@ function tsGetEditorConfig() {
 }
 
 async function tsApplyPreset(preset) {
-  const state = await chrome.storage.sync.get({ theme: 'system', triggerMode: 'click', targetLang: '中文', floatingButtonVisible: true })
+  const state = await chrome.storage.sync.get({ theme: 'system', triggerMode: 'click', targetLang: TS_DEFAULT_TARGET_LANGUAGE, floatingButtonVisible: true })
   const config = {
     ...preset,
     theme: state.theme || 'system',
     triggerMode: state.triggerMode || 'click',
-    targetLang: state.targetLang || '中文',
+    targetLang: tsNormalizeLanguage(state.targetLang) || TS_DEFAULT_TARGET_LANGUAGE,
     floatingButtonVisible: state.floatingButtonVisible !== false
   }
   await chrome.storage.sync.set(config)
@@ -865,6 +924,13 @@ function tsSetFloatingButtonVisible(visible) {
   tsSetSegmentValue('ts-floating-segment', visible ? 'show' : 'hide')
 }
 
+function tsSetTargetLangValue(value) {
+  const input = $('ts-globalTargetLang')
+  if (!input) return
+  input.dataset.value = tsNormalizeLanguage(value) || TS_DEFAULT_TARGET_LANGUAGE
+  input.value = tsGetLanguageLabel(input.dataset.value)
+}
+
 function tsEscape(value) {
   return String(value || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]))
 }
@@ -909,10 +975,66 @@ function tsCloseEditor() {
 async function tsSaveTargetLang(showSaved = true) {
   const input = $('ts-globalTargetLang')
   if (!input) return
-  const targetLang = input.value.trim() || '中文'
-  input.value = targetLang
+  const targetLang = tsNormalizeLanguage(input.value) || TS_DEFAULT_TARGET_LANGUAGE
+  tsSetTargetLangValue(targetLang)
   await chrome.storage.sync.set({ targetLang })
   if (showSaved) tsStatus('目标语言已更新')
+}
+
+function tsNormalizeLanguage(value) {
+  const text = String(value || '').trim()
+  if (!text) return ''
+  if (text === '中文') return TS_DEFAULT_TARGET_LANGUAGE
+  const option = TS_LANGUAGE_OPTIONS.find(item => item.value === text || item.label === text)
+  return option ? option.value : text
+}
+
+function tsGetLanguageLabel(value) {
+  const option = TS_LANGUAGE_OPTIONS.find(item => item.value === value || item.label === value)
+  return option ? option.label : value
+}
+
+function tsFilterLanguageOptions(keyword) {
+  const text = String(keyword || '').trim().toLowerCase()
+  if (!text) return TS_LANGUAGE_OPTIONS
+  return TS_LANGUAGE_OPTIONS.filter(item => `${item.label} ${item.value}`.toLowerCase().includes(text))
+}
+
+function tsRenderLanguageDropdown(keyword = '') {
+  const dropdown = $('ts-globalTargetLangDropdown')
+  if (!dropdown) return
+  const options = tsFilterLanguageOptions(keyword)
+  dropdown.innerHTML = options.length
+    ? options.map(item => {
+      const selected = item.value === $('ts-globalTargetLang')?.dataset.value
+      return `<button type="button" class="ts-lang-option${selected ? ' active' : ''}" data-value="${tsEscapeAttr(item.value)}">${tsEscape(item.label)}</button>`
+    }).join('')
+    : '<div class="ts-lang-empty">暂无匹配语言</div>'
+}
+
+function tsOpenLanguageDropdown(keyword = '') {
+  const dropdown = $('ts-globalTargetLangDropdown')
+  const select = $('ts-globalTargetLangSelect')
+  const input = $('ts-globalTargetLang')
+  if (!dropdown || !select || !input) return
+  tsRenderLanguageDropdown(keyword)
+  dropdown.hidden = false
+  select.classList.add('open')
+}
+
+function tsCloseLanguageDropdown() {
+  const dropdown = $('ts-globalTargetLangDropdown')
+  const select = $('ts-globalTargetLangSelect')
+  if (dropdown) dropdown.hidden = true
+  if (select) select.classList.remove('open')
+}
+
+async function tsPickTargetLang(value) {
+  const targetLang = tsNormalizeLanguage(value) || TS_DEFAULT_TARGET_LANGUAGE
+  tsSetTargetLangValue(targetLang)
+  tsCloseLanguageDropdown()
+  await chrome.storage.sync.set({ targetLang })
+  tsStatus('目标语言已更新')
 }
 
 async function tsToggleGlobalSettings() {
@@ -1006,10 +1128,51 @@ function setupTsListeners() {
     tsToggleGlobalSettings()
   })
 
-  $('ts-globalTargetLang').addEventListener('change', () => tsSaveTargetLang())
+  $('ts-globalTargetLang').addEventListener('focus', (e) => {
+    e.currentTarget.select()
+    tsOpenLanguageDropdown()
+  })
   $('ts-globalTargetLang').addEventListener('input', (e) => {
-    clearTimeout(e.currentTarget._saveTimer)
-    e.currentTarget._saveTimer = setTimeout(() => tsSaveTargetLang(false), 500)
+    tsOpenLanguageDropdown(e.currentTarget.value)
+  })
+  $('ts-globalTargetLang').addEventListener('keydown', async (e) => {
+    if (e.key === 'Escape') {
+      tsCloseLanguageDropdown()
+      e.currentTarget.value = tsGetLanguageLabel(e.currentTarget.dataset.value || TS_DEFAULT_TARGET_LANGUAGE)
+      return
+    }
+    if (e.key !== 'Enter') return
+    e.preventDefault()
+    const first = $('ts-globalTargetLangDropdown')?.querySelector('.ts-lang-option')
+    await tsPickTargetLang(first?.dataset.value || e.currentTarget.value)
+  })
+  $('ts-globalTargetLang').addEventListener('blur', () => {
+    setTimeout(() => {
+      const input = $('ts-globalTargetLang')
+      const dropdown = $('ts-globalTargetLangDropdown')
+      if (!input || !dropdown || dropdown.hidden) return
+      tsCloseLanguageDropdown()
+      input.value = tsGetLanguageLabel(input.dataset.value || TS_DEFAULT_TARGET_LANGUAGE)
+    }, 120)
+  })
+  $('ts-globalTargetLangToggle').addEventListener('click', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const dropdown = $('ts-globalTargetLangDropdown')
+    if (dropdown?.hidden) {
+      $('ts-globalTargetLang').focus()
+      tsOpenLanguageDropdown()
+    } else {
+      tsCloseLanguageDropdown()
+    }
+  })
+  $('ts-globalTargetLangDropdown').addEventListener('mousedown', (e) => {
+    e.preventDefault()
+  })
+  $('ts-globalTargetLangDropdown').addEventListener('click', async (e) => {
+    const option = e.target.closest('.ts-lang-option')
+    if (!option) return
+    await tsPickTargetLang(option.dataset.value)
   })
 
   $('tsAddPreset').addEventListener('click', () => tsOpenEditor())

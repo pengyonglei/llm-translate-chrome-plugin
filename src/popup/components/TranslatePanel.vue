@@ -2,6 +2,33 @@
   <div class="translate-panel">
     <a-tag v-if="configText" color="blue" class="config-tag">{{ configText }}</a-tag>
 
+    <div class="lang-row">
+      <div class="lang-field">
+        <span>原文语言</span>
+        <a-select
+          v-model:value="sourceLang"
+          size="small"
+          show-search
+          :list-height="128"
+          :options="sourceLangOptions"
+          :filter-option="filterLanguageOption"
+          popup-class-name="translate-lang-dropdown"
+        />
+      </div>
+      <div class="lang-field">
+        <span>目标语言</span>
+        <a-select
+          v-model:value="targetLang"
+          size="small"
+          show-search
+          :list-height="128"
+          :options="targetLangOptions"
+          :filter-option="filterLanguageOption"
+          popup-class-name="translate-lang-dropdown"
+        />
+      </div>
+    </div>
+
     <a-textarea
       v-model:value="inputText"
       placeholder="输入要翻译的文本，Ctrl+Enter 快捷翻译…"
@@ -39,8 +66,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { CheckOutlined, CopyOutlined } from '@ant-design/icons-vue'
+import { COMMON_LANGUAGE_OPTIONS, DEFAULT_TARGET_LANGUAGE, SOURCE_LANGUAGE_OPTIONS, ensureLanguageOption, filterLanguageOption, normalizeLanguageValue } from '../../lib/languages.js'
 import { getConfig } from '../../lib/storage.js'
 
 const inputText = ref('')
@@ -49,12 +77,25 @@ const error = ref('')
 const translating = ref(false)
 const copied = ref(false)
 const configText = ref('')
+const sourceLang = ref('auto')
+const targetLang = ref(DEFAULT_TARGET_LANGUAGE)
+const targetLangInitialized = ref(false)
+
+const sourceLangOptions = SOURCE_LANGUAGE_OPTIONS
+
+const targetLangOptions = computed(() => {
+  return ensureLanguageOption(COMMON_LANGUAGE_OPTIONS, targetLang.value)
+})
 
 async function updateConfigText() {
   const cfg = await getConfig()
   const names = { deepseek: 'DeepSeek', bailian: '阿里云百炼', zhipu: '智谱 AI', openai: 'OpenAI', ollama: 'Ollama' }
   const provider = names[cfg.provider] || cfg.provider
   configText.value = `${provider} · ${cfg.model || '未配置模型'}`
+  if (!targetLangInitialized.value) {
+    targetLang.value = normalizeLanguageValue(cfg.targetLang, DEFAULT_TARGET_LANGUAGE)
+    targetLangInitialized.value = true
+  }
 }
 
 onMounted(async () => {
@@ -85,7 +126,12 @@ async function doTranslate() {
   error.value = ''
 
   try {
-    const response = await chrome.runtime.sendMessage({ type: 'translate', text })
+    const response = await chrome.runtime.sendMessage({
+      type: 'translate',
+      text,
+      sourceLang: sourceLang.value,
+      targetLang: normalizeLanguageValue(targetLang.value, DEFAULT_TARGET_LANGUAGE)
+    })
     if (response.ok) {
       result.value = response.data
     } else {
@@ -131,6 +177,30 @@ async function copyResult() {
   background: var(--ui-primary-bg);
   color: var(--ui-primary);
   font-weight: 500;
+}
+.lang-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.lang-field {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.lang-field span {
+  color: var(--ui-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+}
+.lang-field :deep(.ant-select) {
+  width: 100%;
+}
+.lang-field :deep(.ant-select-selector) {
+  font-size: 12px;
 }
 .translate-btn {
   margin-top: 10px;

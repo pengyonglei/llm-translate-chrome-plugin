@@ -37,12 +37,14 @@
         </div>
         <div class="global-item global-item-lang">
           <span>目标语言</span>
-          <a-input
+          <a-select
             v-model:value="selectedTargetLang"
             size="small"
-            placeholder="中文"
+            show-search
+            :list-height="128"
+            :options="globalTargetLangOptions"
+            :filter-option="filterLanguageOption"
             @change="saveTargetLang"
-            @pressEnter="saveTargetLang"
           />
         </div>
         <div class="global-item global-item-floating">
@@ -166,6 +168,7 @@
 import { computed, createVNode, reactive, ref, onMounted } from 'vue'
 import { ExclamationCircleOutlined, CheckOutlined, DeleteOutlined, EditOutlined, PlusOutlined, DownOutlined } from '@ant-design/icons-vue'
 import { Modal } from 'ant-design-vue'
+import { COMMON_LANGUAGE_OPTIONS, DEFAULT_TARGET_LANGUAGE, ensureLanguageOption, filterLanguageOption, normalizeLanguageValue } from '../../lib/languages.js'
 import { getConfig, getPresets, setConfig } from '../../lib/storage.js'
 
 const PROVIDER_NAMES = {
@@ -192,7 +195,7 @@ const drawerMode = ref('add')
 const editingName = ref('')
 const selectedTheme = ref('system')
 const selectedTriggerMode = ref('click')
-const selectedTargetLang = ref('中文')
+const selectedTargetLang = ref(DEFAULT_TARGET_LANGUAGE)
 const selectedFloatingButtonVisible = ref(true)
 const globalSettingsCollapsed = ref(false)
 
@@ -207,6 +210,10 @@ const triggerModeOptions = [
   { label: '立即翻译', value: 'immediate' },
   { label: '不翻译', value: 'disabled' }
 ]
+
+const globalTargetLangOptions = computed(() => {
+  return ensureLanguageOption(COMMON_LANGUAGE_OPTIONS, selectedTargetLang.value)
+})
 
 const form = reactive(createEmptyForm())
 
@@ -247,7 +254,7 @@ async function loadData() {
       activePresetName: '',
       theme: 'system',
       triggerMode: 'click',
-      targetLang: '中文',
+      targetLang: DEFAULT_TARGET_LANGUAGE,
       floatingButtonVisible: true,
       globalSettingsCollapsed: false
     })
@@ -257,7 +264,7 @@ async function loadData() {
   activePresetName.value = meta.activePresetName || ''
   selectedTheme.value = meta.theme || 'system'
   selectedTriggerMode.value = meta.triggerMode || 'click'
-  selectedTargetLang.value = meta.targetLang || '中文'
+  selectedTargetLang.value = normalizeLanguageValue(meta.targetLang, DEFAULT_TARGET_LANGUAGE)
   selectedFloatingButtonVisible.value = meta.floatingButtonVisible !== false
   globalSettingsCollapsed.value = Boolean(meta.globalSettingsCollapsed)
 }
@@ -390,7 +397,7 @@ async function applyModelConfig(preset) {
     ...normalizePreset(preset),
     theme: selectedTheme.value,
     triggerMode: selectedTriggerMode.value,
-    targetLang: selectedTargetLang.value || '中文',
+    targetLang: normalizeLanguageValue(selectedTargetLang.value, DEFAULT_TARGET_LANGUAGE),
     floatingButtonVisible: selectedFloatingButtonVisible.value
   }
   await setConfig(config)
@@ -412,7 +419,7 @@ async function saveTriggerMode(triggerMode) {
 }
 
 async function saveTargetLang() {
-  const targetLang = selectedTargetLang.value.trim() || '中文'
+  const targetLang = normalizeLanguageValue(selectedTargetLang.value, DEFAULT_TARGET_LANGUAGE)
   selectedTargetLang.value = targetLang
   await chrome.storage.sync.set({ targetLang })
   currentConfig.value = { ...currentConfig.value, targetLang }
@@ -546,15 +553,22 @@ function showToast(msg) {
 }
 
 .global-item :deep(.ant-segmented),
+.global-item :deep(.ant-select),
 .global-item :deep(.ant-input) {
   width: min(276px, calc(100% - 76px));
 }
 
-.global-item :deep(.ant-input) {
+.global-item :deep(.ant-input),
+.global-item :deep(.ant-select-selector) {
   height: 28px;
   font-size: 12px;
   font-weight: 400;
   line-height: 20px;
+}
+
+.global-item :deep(.ant-select-selection-item),
+.global-item :deep(.ant-select-selection-search-input) {
+  font-size: 12px;
 }
 
 .global-item :deep(.ant-segmented-group) {

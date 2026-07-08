@@ -1,9 +1,11 @@
+import { DEFAULT_TARGET_LANGUAGE, normalizeLanguageValue } from './languages.js'
+
 const DEFAULTS = {
   provider: 'deepseek',
   apiKey: '',
   baseUrl: '',
   model: '',
-  targetLang: '中文',
+  targetLang: DEFAULT_TARGET_LANGUAGE,
   theme: 'system',
   disableThinking: true,
   triggerMode: 'click',
@@ -23,6 +25,7 @@ export async function getConfig() {
   const defaults = PROVIDER_DEFAULTS[result.provider]
   if (!result.baseUrl && defaults) result.baseUrl = defaults.baseUrl
   if (!result.model && defaults) result.model = defaults.model
+  result.targetLang = normalizeLanguageValue(result.targetLang, DEFAULT_TARGET_LANGUAGE)
   return result
 }
 

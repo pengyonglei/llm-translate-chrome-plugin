@@ -46,44 +46,59 @@ chrome.storage.onChanged.addListener((changes, area) => {
 const cache = new Map()
 const CACHE_TTL = 10 * 60 * 1000
 const CACHE_MAX = 100
+const DEFAULT_TARGET_LANGUAGE = '简体中文'
 
-function getCached(text) {
-  const entry = cache.get(text)
+function getCacheKey(text, sourceLang, targetLang) {
+  return `${sourceLang || 'auto'}::${targetLang || ''}::${text}`
+}
+
+function getCached(text, sourceLang, targetLang) {
+  const entry = cache.get(getCacheKey(text, sourceLang, targetLang))
   if (entry && Date.now() - entry.time < CACHE_TTL) {
     return entry.result
   }
-  cache.delete(text)
+  cache.delete(getCacheKey(text, sourceLang, targetLang))
   return null
 }
 
-function setCache(text, result) {
+function setCache(text, sourceLang, targetLang, result) {
   if (cache.size >= CACHE_MAX) {
     const firstKey = cache.keys().next().value
     cache.delete(firstKey)
   }
-  cache.set(text, { result, time: Date.now() })
+  cache.set(getCacheKey(text, sourceLang, targetLang), { result, time: Date.now() })
 }
 
 async function getConfig() {
   const DEFAULTS = {
     provider: 'deepseek', apiKey: '', baseUrl: '', model: '',
-    targetLang: '中文', theme: 'system', disableThinking: true
+    targetLang: DEFAULT_TARGET_LANGUAGE, theme: 'system', disableThinking: true
   }
   const result = await chrome.storage.sync.get(DEFAULTS)
   const defaults = PROVIDER_DEFAULTS[result.provider]
   if (!result.baseUrl && defaults) result.baseUrl = defaults.baseUrl
   if (!result.model && defaults) result.model = defaults.model
+  result.targetLang = normalizeTargetLanguage(result.targetLang)
   return result
 }
 
+function normalizeTargetLanguage(value) {
+  const text = String(value || '').trim()
+  if (!text || text === '中文') return DEFAULT_TARGET_LANGUAGE
+  return text
+}
+
 async function translate(text, config) {
-  const { provider, baseUrl, apiKey, model, targetLang, disableThinking } = config
+  const { provider, baseUrl, apiKey, model, targetLang, sourceLang, disableThinking } = config
 
   if (!baseUrl || !model) {
     throw new Error('请完成 API 配置')
   }
 
-  const systemPrompt = `你是一个专业的翻译助手。请将用户提供的文本翻译成${targetLang}。只返回翻译结果，不要添加任何解释、引号或额外内容。如果文本已经是${targetLang}，直接返回原文。**注意**：如果用户提供的文本中包含换行的格式，在翻译的结果中也一并把格式带上。`
+  const sourceInstruction = sourceLang && sourceLang !== 'auto'
+    ? `用户提供的文本原文语言是${sourceLang}，`
+    : '请自动识别用户提供文本的原文语言，'
+  const systemPrompt = `你是一个专业的翻译助手。${sourceInstruction}请将用户提供的文本翻译成${targetLang}。只返回翻译结果，不要添加任何解释、引号或额外内容。如果文本已经是${targetLang}，直接返回原文。**注意**：如果用户提供的文本中包含换行的格式，在翻译的结果中也一并把格式带上。`
   const url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`
 
   const body = {
@@ -153,15 +168,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === 'translate') {
     (async () => {
       try {
-        const cached = getCached(request.text)
+        const config = await getConfig()
+        const sourceLang = request.sourceLang || 'auto'
+        const targetLang = normalizeTargetLanguage(request.targetLang || config.targetLang)
+        const cached = getCached(request.text, sourceLang, targetLang)
         if (cached) {
           sendResponse({ ok: true, data: cached })
           return
         }
 
-        const config = await getConfig()
-        const result = await translate(request.text, config)
-        setCache(request.text, result)
+        const result = await translate(request.text, { ...config, sourceLang, targetLang })
+        setCache(request.text, sourceLang, targetLang, result)
         sendResponse({ ok: true, data: result })
       } catch (err) {
         sendResponse({ ok: false, error: err.message || '翻译失败' })

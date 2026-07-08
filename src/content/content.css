@@ -383,6 +383,12 @@
   box-shadow: none;
 }
 
+.ts-global-card {
+  position: relative;
+  z-index: 2;
+  overflow: visible;
+}
+
 .ts-control-card {
   display: flex;
   align-items: center;
@@ -446,12 +452,13 @@
   flex-direction: column;
   gap: 9px;
   max-height: 176px;
-  overflow: hidden;
+  overflow: visible;
   transition: max-height 0.2s ease, opacity 0.18s ease;
 }
 
 .ts-global-card.collapsed .ts-global-grid {
   max-height: 0;
+  overflow: hidden;
   opacity: 0;
   pointer-events: none;
 }
@@ -474,7 +481,8 @@
 }
 
 .ts-global-item .ts-segmented,
-.ts-global-item input {
+.ts-global-item input,
+.ts-global-item .ts-lang-select {
   width: min(252px, calc(100% - 76px));
 }
 
@@ -499,6 +507,104 @@
 .ts-global-item input:focus {
   border-color: var(--translate-primary);
   box-shadow: 0 0 0 2px var(--translate-primary-bg);
+}
+
+.ts-lang-select {
+  position: relative;
+}
+
+.ts-lang-select input {
+  width: 100% !important;
+  padding-right: 30px;
+}
+
+.ts-lang-toggle {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--translate-text-tertiary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-50%);
+}
+
+.ts-lang-toggle svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.18s ease;
+}
+
+.ts-lang-select.open .ts-lang-toggle svg {
+  transform: rotate(180deg);
+}
+
+.ts-lang-dropdown {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 128px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--translate-border);
+  border-radius: 8px;
+  background: var(--translate-bg-elevated);
+  box-shadow: var(--translate-shadow-1-down);
+  box-sizing: border-box;
+}
+
+.ts-lang-dropdown[hidden] {
+  display: none !important;
+}
+
+.ts-lang-option {
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--translate-text);
+  cursor: pointer;
+  display: block;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 30px;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ts-lang-option:hover,
+.ts-lang-option.active {
+  background: var(--translate-fill);
+}
+
+.ts-lang-option.active {
+  color: var(--translate-primary);
+  font-weight: 500;
+}
+
+.ts-lang-empty {
+  padding: 6px 8px;
+  color: var(--translate-text-tertiary);
+  font-size: 12px;
+  line-height: 20px;
 }
 
 .ts-control-title,
