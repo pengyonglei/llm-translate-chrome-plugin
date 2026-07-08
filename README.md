@@ -2,9 +2,9 @@
 
 ## 效果预览
 
-| 划词翻译 | 设置面板 |
-|---|---|
-| ![划词翻译效果](docs/translate.png) | ![设置面板效果](docs/setting.png) |
+| 翻译                          | 设置面板 | 划词翻译 |
+|-------------------------------|---|---|
+| ![翻译效果](docs/translate.png) | ![设置面板效果](docs/setting.png) | ![划词翻译效果](docs/translate-popup.png) |
 
 一款基于 Manifest V3 的 Chrome 扩展，使用大语言模型（LLM）实现网页划词翻译，支持多种 AI 提供商。
 
