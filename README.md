@@ -133,6 +133,25 @@ npm run build
 
 构建结果位于 `dist/`。
 
+自动生成 release 压缩包：
+
+```bash
+bash scripts/release.sh
+```
+
+脚本会读取 `public/manifest.json` 中的版本号，执行构建，并将 `dist/` 目录内容压缩到 `releases/`，文件名格式为：
+
+```bash
+releases/ai-translate-chrome-plugin-版本号.zip
+```
+
+也可以在执行时指定版本号，脚本会先同步更新 `public/manifest.json`，再生成 release 包：
+
+```bash
+bash scripts/release.sh 1.1.2
+bash scripts/release.sh v1.1.2
+```
+
 生成上传 Chrome Web Store 的压缩包时，将 `dist` 目录内的内容压缩成 `.zip`。如果要生成 `.crx`，在 Chrome 扩展管理页面点击“打包扩展程序”，扩展程序根目录选择 `dist`。
 
 ## 技术细节
