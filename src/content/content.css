@@ -215,6 +215,67 @@
   padding: 4px 0;
 }
 
+.translate-page-toast {
+  all: initial;
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 2147483647;
+  max-width: min(360px, calc(100vw - 36px));
+  padding: 9px 14px;
+  border: 1px solid var(--translate-primary-border);
+  border-radius: 8px;
+  background: var(--translate-primary-bg);
+  color: var(--translate-primary-active);
+  box-shadow: var(--translate-shadow-2-down);
+  box-sizing: border-box;
+  font-family: var(--translate-font-family);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.translate-page-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.translate-page-toast.success {
+  border-color: var(--translate-success-border);
+  background: var(--translate-success-bg);
+  color: var(--translate-success);
+}
+
+.translate-page-toast.error {
+  border-color: var(--translate-error-border);
+  background: var(--translate-error-bg);
+  color: var(--translate-error);
+}
+
+.translate-page-inline-result {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 4px 0 6px;
+  padding: 5px 8px;
+  border-left: 3px solid #1677ff;
+  border-radius: 5px;
+  background: #e6f4ff;
+  color: rgba(0, 0, 0, 0.88);
+  box-sizing: border-box;
+  font-family: var(--translate-font-family);
+  font-size: 0.95em;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.55;
+  white-space: normal;
+  word-break: break-word;
+}
+
 .translate-container.dark {
   --translate-primary: #1668dc;
   --translate-primary-hover: #3c89e8;
@@ -244,6 +305,28 @@
   --translate-shadow-3-down: 0 6px 16px -8px rgba(0, 0, 0, 0.32), 0 9px 28px 0 rgba(0, 0, 0, 0.24), 0 12px 48px 16px rgba(0, 0, 0, 0.18);
   --translate-shadow-2-left: -3px 0 6px -4px rgba(0, 0, 0, 0.32), -6px 0 16px 0 rgba(0, 0, 0, 0.24), -9px 0 28px 8px rgba(0, 0, 0, 0.18);
   --translate-hover: rgba(255, 255, 255, 0.08);
+}
+
+.translate-page-toast.dark {
+  --translate-primary: #1668dc;
+  --translate-primary-active: #3c89e8;
+  --translate-primary-bg: #111a2c;
+  --translate-primary-border: #15325b;
+  --translate-success: #49aa19;
+  --translate-success-bg: #162312;
+  --translate-success-border: #274916;
+  --translate-error: #dc4446;
+  --translate-error-bg: #2c1618;
+  --translate-error-border: #5b2526;
+  --translate-shadow-2-down: 0 3px 6px -4px rgba(0, 0, 0, 0.32), 0 6px 16px 0 rgba(0, 0, 0, 0.24), 0 9px 28px 8px rgba(0, 0, 0, 0.18);
+}
+
+@media (prefers-color-scheme: dark) {
+  .translate-page-inline-result {
+    border-left-color: #3c89e8;
+    background: #111a2c;
+    color: rgba(255, 255, 255, 0.85);
+  }
 }
 
 /* ====== 悬浮设置按钮（可拖拽 + 贴边） ====== */

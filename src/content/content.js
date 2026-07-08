@@ -9,6 +9,13 @@ let triggerMode = 'click'
 let dismissGuardTimeout = null
 let settingsBtn = null
 let floatingButtonVisible = true
+let pageTranslateToastTimer = null
+
+const pageTranslateState = {
+  running: false,
+  translatedAt: 0,
+  replacements: []
+}
 
 const UI_ICONS = {
   check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>',
@@ -346,6 +353,267 @@ function checkSelection() {
   } else {
     // 点击图标翻译：先显示小图标
     showTrigger(rect, text)
+  }
+}
+
+// ====== 整页翻译 ======
+
+const PAGE_TRANSLATE_BATCH_MAX_TEXTS = 40
+const PAGE_TRANSLATE_BATCH_MAX_CHARS = 2800
+const PAGE_TRANSLATE_SKIP_SELECTOR = [
+  '.translate-container',
+  '.translate-settings-overlay',
+  '.translate-settings-btn',
+  '.translate-page-toast',
+  '.translate-page-inline-result',
+  'script',
+  'style',
+  'noscript',
+  'iframe',
+  'canvas',
+  'svg',
+  'pre',
+  'code',
+  'textarea',
+  'input',
+  'select',
+  'option',
+  '[contenteditable="true"]',
+  '[aria-hidden="true"]'
+].join(',')
+
+function startPageTranslation(options = {}) {
+  if (pageTranslateState.running) {
+    showPageTranslateToast('整页翻译正在进行中…')
+    return { ok: false, error: '整页翻译正在进行中' }
+  }
+
+  translateCurrentPage(options).catch(err => {
+    showPageTranslateToast(err.message || '整页翻译失败', 'error')
+  })
+  return { ok: true }
+}
+
+function restorePageTranslation(options = {}) {
+  if (pageTranslateState.running) {
+    showPageTranslateToast('整页翻译正在进行中，请稍后再还原', 'error')
+    return { ok: false, error: '整页翻译正在进行中' }
+  }
+
+  const restoredCount = restorePageTranslationState()
+  if (!options.silent) {
+    showPageTranslateToast(
+      restoredCount ? `已还原网页，共恢复 ${restoredCount} 处内容` : '当前网页没有可还原的翻译内容',
+      restoredCount ? 'success' : 'info'
+    )
+  }
+  return { ok: true, data: { restoredCount } }
+}
+
+async function translateCurrentPage(options = {}) {
+  pageTranslateState.running = true
+  close()
+  closeSettingsPanel()
+  showPageTranslateToast('正在扫描页面文本…', 'info', true)
+
+  try {
+    const mode = await getPageTranslateMode(options.mode)
+    restorePageTranslationState()
+    const entries = collectPageTextEntries()
+    if (!entries.length) {
+      throw new Error('当前页面没有可翻译的文本')
+    }
+
+    const batches = createPageTranslationBatches(entries)
+    let translatedCount = 0
+
+    for (const batch of batches) {
+      showPageTranslateToast(`正在翻译当前网页 ${translatedCount}/${entries.length}`, 'info', true)
+      const response = await chrome.runtime.sendMessage({
+        type: 'translateBatch',
+        texts: batch.map(item => item.core),
+        sourceLang: options.sourceLang || 'auto',
+        targetLang: options.targetLang
+      })
+
+      if (!response?.ok) {
+        throw new Error(response?.error || '整页翻译失败')
+      }
+
+      const translations = Array.isArray(response.data) ? response.data : []
+      if (translations.length !== batch.length) {
+        throw new Error('整页翻译返回数量不一致')
+      }
+
+      batch.forEach((entry, index) => {
+        if (!entry.node.isConnected) return
+        const translated = String(translations[index] || '').trim()
+        if (!translated) return
+        applyPageTranslation(entry, translated, mode)
+      })
+      translatedCount += batch.length
+    }
+
+    pageTranslateState.translatedAt = Date.now()
+    showPageTranslateToast(`${mode === 'compare' ? '对照翻译' : '整页翻译'}完成，共翻译 ${translatedCount} 处文本`, 'success')
+  } finally {
+    pageTranslateState.running = false
+  }
+}
+
+async function getPageTranslateMode(mode) {
+  if (mode === 'compare') return 'compare'
+  if (mode === 'replace') return 'replace'
+
+  try {
+    const result = await chrome.storage.sync.get({ pageTranslateMode: 'replace' })
+    return result.pageTranslateMode === 'compare' ? 'compare' : 'replace'
+  } catch {
+    return 'replace'
+  }
+}
+
+function cleanupPageTranslationArtifacts() {
+  const artifacts = Array.from(document.querySelectorAll('.translate-page-inline-result'))
+  artifacts.forEach(el => el.remove())
+  return artifacts.length
+}
+
+function restorePageTranslationState() {
+  let restoredCount = cleanupPageTranslationArtifacts()
+
+  pageTranslateState.replacements.forEach(({ node, value }) => {
+    if (!node?.isConnected) return
+    node.nodeValue = value
+    restoredCount += 1
+  })
+  pageTranslateState.replacements = []
+  pageTranslateState.translatedAt = 0
+  return restoredCount
+}
+
+function applyPageTranslation(entry, translated, mode) {
+  if (mode === 'compare') {
+    insertCompareTranslation(entry.node, translated)
+    return
+  }
+
+  pageTranslateState.replacements.push({
+    node: entry.node,
+    value: entry.node.nodeValue
+  })
+  entry.node.nodeValue = `${entry.leading}${translated}${entry.trailing}`
+}
+
+function insertCompareTranslation(textNode, translated) {
+  const parent = textNode.parentNode
+  if (!parent) return
+
+  const result = document.createElement('span')
+  result.className = 'translate-page-inline-result'
+  result.textContent = translated
+  parent.insertBefore(result, textNode.nextSibling)
+}
+
+function collectPageTextEntries() {
+  const entries = []
+  const walker = document.createTreeWalker(
+    document.body,
+    NodeFilter.SHOW_TEXT,
+    {
+      acceptNode(node) {
+        const parent = node.parentElement
+        if (!parent || shouldSkipPageTranslateElement(parent)) {
+          return NodeFilter.FILTER_REJECT
+        }
+        if (!isElementVisible(parent)) {
+          return NodeFilter.FILTER_REJECT
+        }
+        return isTranslatablePageText(node.nodeValue)
+          ? NodeFilter.FILTER_ACCEPT
+          : NodeFilter.FILTER_REJECT
+      }
+    }
+  )
+
+  let node
+  while ((node = walker.nextNode())) {
+    const text = node.nodeValue || ''
+    const leading = text.match(/^\s*/)?.[0] || ''
+    const trailing = text.match(/\s*$/)?.[0] || ''
+    const core = text.trim()
+    entries.push({ node, leading, trailing, core })
+  }
+
+  return entries
+}
+
+function shouldSkipPageTranslateElement(element) {
+  if (element.closest(PAGE_TRANSLATE_SKIP_SELECTOR)) return true
+  const tag = element.tagName?.toLowerCase()
+  return ['br', 'hr'].includes(tag)
+}
+
+function isElementVisible(element) {
+  const style = window.getComputedStyle(element)
+  if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false
+  return element.getClientRects().length > 0
+}
+
+function isTranslatablePageText(text) {
+  const value = String(text || '').trim()
+  if (value.length < 2 || value.length > 3000) return false
+  if (!/\p{L}/u.test(value)) return false
+  if (/^[\d\s.,:;!?()[\]{}'"`~@#$%^&*_+=|/\\<>-]+$/.test(value)) return false
+  return true
+}
+
+function createPageTranslationBatches(entries) {
+  const batches = []
+  let current = []
+  let currentChars = 0
+
+  entries.forEach(entry => {
+    const nextChars = currentChars + entry.core.length
+    if (
+      current.length &&
+      (current.length >= PAGE_TRANSLATE_BATCH_MAX_TEXTS || nextChars > PAGE_TRANSLATE_BATCH_MAX_CHARS)
+    ) {
+      batches.push(current)
+      current = []
+      currentChars = 0
+    }
+    current.push(entry)
+    currentChars += entry.core.length
+  })
+
+  if (current.length) batches.push(current)
+  return batches
+}
+
+async function showPageTranslateToast(message, type = 'info', persistent = false) {
+  let toast = document.querySelector('.translate-page-toast')
+  if (!toast) {
+    toast = document.createElement('div')
+    toast.className = 'translate-page-toast'
+    document.body.appendChild(toast)
+  }
+
+  toast.classList.remove('success', 'error')
+  if (type === 'success' || type === 'error') toast.classList.add(type)
+  toast.textContent = message
+
+  const themeClass = await getTheme()
+  toast.classList.toggle('dark', themeClass === 'dark')
+
+  requestAnimationFrame(() => { toast.classList.add('show') })
+  clearTimeout(pageTranslateToastTimer)
+
+  if (!persistent) {
+    pageTranslateToastTimer = setTimeout(() => {
+      toast.classList.remove('show')
+      setTimeout(() => toast.remove(), 220)
+    }, 2600)
   }
 }
 
@@ -1273,5 +1541,15 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     close()
     closeSettingsPanel()
+  }
+})
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.type === 'translatePage') {
+    sendResponse(startPageTranslation(request))
+    return
+  }
+  if (request.type === 'restorePageTranslation') {
+    sendResponse(restorePageTranslation(request))
   }
 })
