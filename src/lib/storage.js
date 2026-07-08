@@ -6,7 +6,8 @@ const DEFAULTS = {
   targetLang: '中文',
   theme: 'system',
   disableThinking: true,
-  triggerMode: 'click'
+  triggerMode: 'click',
+  floatingButtonVisible: true
 }
 
 const PROVIDER_DEFAULTS = {

@@ -28,8 +28,8 @@
         class="copy-tag"
         @click="copyResult"
       >
-        <svg v-if="!copied" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="copy-icon"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="copy-icon"><polyline points="20 6 9 17 4 12"/></svg>
+        <CopyOutlined v-if="!copied" class="copy-icon" />
+        <CheckOutlined v-else class="copy-icon" />
         {{ copied ? '已复制' : '复制' }}
       </a-tag>
     </div>
@@ -40,6 +40,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import { CheckOutlined, CopyOutlined } from '@ant-design/icons-vue'
 import { getConfig } from '../../lib/storage.js'
 
 const inputText = ref('')
@@ -119,68 +120,66 @@ async function copyResult() {
 .translate-panel {
   min-height: 100%;
   padding: 10px 12px 12px;
-  background:
-    linear-gradient(135deg, rgba(35, 119, 255, 0.12), transparent 34%),
-    linear-gradient(315deg, rgba(14, 201, 167, 0.12), transparent 30%);
+  background: var(--ui-bg-layout);
+  color: var(--ui-text);
 }
 .config-tag {
   display: block;
   text-align: center;
   margin-bottom: 10px;
-  border-color: rgba(74, 144, 217, 0.28);
-  background: rgba(255, 255, 255, 0.82);
-  font-weight: 700;
+  border-color: var(--ui-primary-border);
+  background: var(--ui-primary-bg);
+  color: var(--ui-primary);
+  font-weight: 500;
 }
 .translate-btn {
   margin-top: 10px;
-  background: #1e8cff;
-  border-color: #1e8cff;
-  box-shadow: 0 8px 18px rgba(30, 140, 255, 0.28);
+  background: var(--ui-primary);
+  border-color: var(--ui-primary);
+  box-shadow: none;
 }
 .result-box {
   margin-top: 10px;
   padding: 10px;
-  border: 1px solid rgba(74, 144, 217, 0.18);
+  border: 1px solid var(--ui-border);
   border-radius: 8px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(244, 250, 255, 0.96)),
-    radial-gradient(circle at top right, rgba(20, 184, 166, 0.16), transparent 32%);
-  box-shadow: 0 8px 22px rgba(15, 82, 186, 0.08);
+  background: var(--ui-bg-container);
+  box-shadow: none;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 22px;
   word-break: break-word;
 }
 .error-box {
   margin-top: 10px;
   padding: 10px;
   border-radius: 6px;
-  background: #fce4ec;
-  color: #c62828;
+  border: 1px solid var(--ui-error-border);
+  background: var(--ui-error-bg);
+  color: var(--ui-error);
   font-size: 13px;
 }
 .result-text { margin-bottom: 6px; }
 .copy-tag { cursor: pointer; user-select: none; }
-.copy-icon { vertical-align: -2px; margin-right: 3px; }
+.copy-icon {
+  margin-right: 3px;
+  font-size: 12px;
+  vertical-align: -1px;
+}
 
 :global(.dark .translate-panel) {
-  background:
-    linear-gradient(135deg, rgba(30, 140, 255, 0.14), transparent 36%),
-    linear-gradient(315deg, rgba(20, 184, 166, 0.13), transparent 34%),
-    #141414;
+  background: var(--ui-bg-layout);
 }
 
 :global(.dark .config-tag) {
-  background: rgba(12, 31, 52, 0.86);
-  border-color: rgba(62, 166, 255, 0.38);
-  color: #b8dcff;
+  background: var(--ui-primary-bg);
+  border-color: var(--ui-primary-border);
+  color: var(--ui-primary-hover);
 }
 
 :global(.dark .result-box) {
-  background:
-    linear-gradient(135deg, rgba(19, 33, 51, 0.96), rgba(13, 31, 36, 0.96)),
-    radial-gradient(circle at top right, rgba(30, 140, 255, 0.18), transparent 34%);
-  border-color: rgba(62, 166, 255, 0.28);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
-  color: #e8f3ff;
+  background: var(--ui-bg-elevated);
+  border-color: var(--ui-border);
+  box-shadow: none;
+  color: var(--ui-text);
 }
 </style>

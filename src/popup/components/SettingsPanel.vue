@@ -45,6 +45,15 @@
             @pressEnter="saveTargetLang"
           />
         </div>
+        <div class="global-item global-item-floating">
+          <span>悬浮按钮</span>
+          <a-switch
+            v-model:checked="selectedFloatingButtonVisible"
+            checked-children="显示"
+            un-checked-children="隐藏"
+            @change="saveFloatingButtonVisible"
+          />
+        </div>
       </div>
     </div>
 
@@ -184,10 +193,11 @@ const editingName = ref('')
 const selectedTheme = ref('system')
 const selectedTriggerMode = ref('click')
 const selectedTargetLang = ref('中文')
+const selectedFloatingButtonVisible = ref(true)
 const globalSettingsCollapsed = ref(false)
 
 const themeOptions = [
-  { label: '系统', value: 'system' },
+  { label: '跟随系统', value: 'system' },
   { label: '浅色', value: 'light' },
   { label: '深色', value: 'dark' }
 ]
@@ -238,6 +248,7 @@ async function loadData() {
       theme: 'system',
       triggerMode: 'click',
       targetLang: '中文',
+      floatingButtonVisible: true,
       globalSettingsCollapsed: false
     })
   ])
@@ -247,6 +258,7 @@ async function loadData() {
   selectedTheme.value = meta.theme || 'system'
   selectedTriggerMode.value = meta.triggerMode || 'click'
   selectedTargetLang.value = meta.targetLang || '中文'
+  selectedFloatingButtonVisible.value = meta.floatingButtonVisible !== false
   globalSettingsCollapsed.value = Boolean(meta.globalSettingsCollapsed)
 }
 
@@ -378,7 +390,8 @@ async function applyModelConfig(preset) {
     ...normalizePreset(preset),
     theme: selectedTheme.value,
     triggerMode: selectedTriggerMode.value,
-    targetLang: selectedTargetLang.value || '中文'
+    targetLang: selectedTargetLang.value || '中文',
+    floatingButtonVisible: selectedFloatingButtonVisible.value
   }
   await setConfig(config)
   currentConfig.value = config
@@ -404,6 +417,13 @@ async function saveTargetLang() {
   await chrome.storage.sync.set({ targetLang })
   currentConfig.value = { ...currentConfig.value, targetLang }
   showToast('目标语言已更新')
+}
+
+async function saveFloatingButtonVisible(visible) {
+  selectedFloatingButtonVisible.value = visible
+  await chrome.storage.sync.set({ floatingButtonVisible: visible })
+  currentConfig.value = { ...currentConfig.value, floatingButtonVisible: visible }
+  showToast(visible ? '悬浮按钮已显示' : '悬浮按钮已隐藏')
 }
 
 async function toggleGlobalSettings() {
@@ -446,18 +466,17 @@ function showToast(msg) {
 .settings-panel {
   min-height: 100%;
   padding: 8px 10px 12px;
-  background:
-    linear-gradient(135deg, rgba(35, 119, 255, 0.12), transparent 34%),
-    linear-gradient(315deg, rgba(14, 201, 167, 0.12), transparent 30%);
+  background: var(--ui-bg-layout);
+  color: var(--ui-text);
 }
 
 .global-strip {
   padding: 10px;
   margin-bottom: 10px;
-  border: 1px solid rgba(74, 144, 217, 0.22);
+  border: 1px solid var(--ui-border);
   border-radius: 8px;
-  background: linear-gradient(135deg, rgba(21, 101, 216, 0.12), rgba(20, 184, 166, 0.12));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  background: var(--ui-bg-container);
+  box-shadow: none;
 }
 
 .global-head {
@@ -472,16 +491,17 @@ function showToast(msg) {
 }
 
 .global-head:hover {
-  background: rgba(30, 140, 255, 0.08);
+  background: var(--ui-fill);
 }
 
 .global-toggle {
   flex: 0 0 auto;
-  color: #1e8cff;
+  color: var(--ui-primary);
   transition: transform 0.18s ease, color 0.18s ease;
 }
 
 .global-toggle :deep(.anticon) {
+  font-size: 10px;
   transition: transform 0.18s ease;
 }
 
@@ -497,7 +517,7 @@ function showToast(msg) {
   display: flex;
   flex-direction: column;
   gap: 9px;
-  max-height: 136px;
+  max-height: 176px;
   overflow: hidden;
   transition: max-height 0.2s ease, opacity 0.18s ease, margin-top 0.18s ease;
 }
@@ -519,10 +539,10 @@ function showToast(msg) {
 
 .global-item span {
   flex: 0 0 64px;
-  color: #344054;
-  font-size: 11px;
-  font-weight: 800;
-  line-height: 16px;
+  color: var(--ui-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
 }
 
 .global-item :deep(.ant-segmented),
@@ -531,7 +551,10 @@ function showToast(msg) {
 }
 
 .global-item :deep(.ant-input) {
-  font-weight: 700;
+  height: 28px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 20px;
 }
 
 .global-item :deep(.ant-segmented-group) {
@@ -543,16 +566,28 @@ function showToast(msg) {
   text-align: center;
 }
 
+.global-item :deep(.ant-segmented-item-label) {
+  min-height: 22px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 22px;
+}
+
+.global-item :deep(.ant-segmented-thumb) {
+  min-height: 22px;
+}
+
 .theme-title {
-  font-size: 13px;
-  font-weight: 800;
-  line-height: 18px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 22px;
 }
 
 .theme-subtitle {
-  color: #667085;
-  font-size: 11px;
-  line-height: 16px;
+  color: var(--ui-text-secondary);
+  font-size: 12px;
+  line-height: 20px;
 }
 
 .settings-toolbar {
@@ -565,15 +600,15 @@ function showToast(msg) {
 }
 
 .settings-title {
-  font-size: 15px;
-  font-weight: 800;
-  line-height: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 22px;
 }
 
 .settings-subtitle {
-  color: #888;
+  color: var(--ui-text-secondary);
   font-size: 12px;
-  line-height: 18px;
+  line-height: 20px;
 }
 
 .empty-state {
@@ -588,18 +623,16 @@ function showToast(msg) {
   align-items: center !important;
   padding: 11px 10px !important;
   margin-bottom: 8px;
-  border: 1px solid rgba(74, 144, 217, 0.18) !important;
+  border: 1px solid var(--ui-border) !important;
   border-radius: 8px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(244, 250, 255, 0.96)),
-    radial-gradient(circle at top right, rgba(20, 184, 166, 0.18), transparent 32%);
-  box-shadow: 0 8px 22px rgba(15, 82, 186, 0.08);
+  background: var(--ui-bg-container);
+  box-shadow: none;
   transition: border-color 0.18s, box-shadow 0.18s, transform 0.18s;
 }
 
 .model-item:hover {
-  border-color: rgba(74, 144, 217, 0.42) !important;
-  box-shadow: 0 10px 26px rgba(15, 82, 186, 0.14);
+  border-color: var(--ui-primary-border) !important;
+  box-shadow: var(--ui-shadow-1-down);
   transform: translateY(-1px);
 }
 
@@ -620,22 +653,23 @@ function showToast(msg) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 22px;
 }
 
 .model-meta {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #345;
+  color: var(--ui-text-secondary);
   font-size: 12px;
-  line-height: 18px;
+  line-height: 20px;
 }
 
 .model-meta span:first-child {
-  color: #1677ff;
-  font-weight: 700;
+  color: var(--ui-primary);
+  font-weight: 500;
 }
 
 .model-meta span {
@@ -646,9 +680,9 @@ function showToast(msg) {
 }
 
 .model-url {
-  color: #667085;
-  font-size: 11px;
-  line-height: 16px;
+  color: var(--ui-text-secondary);
+  font-size: 12px;
+  line-height: 20px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -662,37 +696,53 @@ function showToast(msg) {
   margin-left: 8px;
 }
 
+.model-actions :deep(.ant-btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.model-actions :deep(.anticon) {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.settings-toolbar :deep(.anticon) {
+  font-size: 10px;
+  line-height: 1;
+}
+
 .settings-panel :deep(.ant-segmented) {
-  background: rgba(255, 255, 255, 0.74);
-  border: 1px solid rgba(30, 140, 255, 0.22);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  background: var(--ui-fill);
+  border: 1px solid var(--ui-border);
+  box-shadow: none;
 }
 
 .settings-panel :deep(.ant-segmented-item) {
-  color: #536274;
-  font-weight: 700;
+  color: var(--ui-text-secondary);
+  font-weight: 500;
 }
 
 .settings-panel :deep(.ant-segmented-item-selected) {
-  background: linear-gradient(135deg, #1e8cff, #23c7b7);
+  background: var(--ui-primary);
   color: #fff;
-  box-shadow: 0 5px 14px rgba(30, 140, 255, 0.32);
+  box-shadow: none;
 }
 
 .settings-panel :deep(.ant-segmented-thumb) {
-  background: linear-gradient(135deg, #1e8cff, #23c7b7);
-  box-shadow: 0 5px 14px rgba(30, 140, 255, 0.32);
+  background: var(--ui-primary);
+  box-shadow: none;
 }
 
 .settings-panel :deep(.ant-btn-primary:not(:disabled)) {
-  background: #1e8cff;
-  border-color: #1e8cff;
-  box-shadow: 0 7px 16px rgba(30, 140, 255, 0.3);
+  background: var(--ui-primary);
+  border-color: var(--ui-primary);
+  box-shadow: none;
 }
 
 .settings-panel :deep(.ant-btn-primary:not(:disabled):hover) {
-  background: #3aa0ff;
-  border-color: #3aa0ff;
+  background: var(--ui-primary-hover);
+  border-color: var(--ui-primary-hover);
 }
 
 .drawer-footer {
@@ -702,69 +752,64 @@ function showToast(msg) {
 }
 
 :global(.dark .settings-panel) {
-  background:
-    linear-gradient(135deg, rgba(30, 140, 255, 0.14), transparent 36%),
-    linear-gradient(315deg, rgba(20, 184, 166, 0.13), transparent 34%),
-    #141414;
+  background: var(--ui-bg-layout);
 }
 
 :global(.dark .global-strip) {
-  border-color: rgba(62, 166, 255, 0.38);
-  background: linear-gradient(135deg, rgba(17, 53, 86, 0.88), rgba(9, 55, 49, 0.88));
-  box-shadow: inset 0 1px 0 rgba(147, 197, 253, 0.2), 0 8px 20px rgba(0, 0, 0, 0.22);
+  border-color: var(--ui-border);
+  background: var(--ui-bg-container);
+  box-shadow: none;
 }
 
 :global(.dark .global-item span) {
-  color: #bfd2e5;
+  color: var(--ui-text-secondary);
 }
 
 :global(.dark .global-toggle) {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(62, 166, 255, 0.32);
-  color: #66b8ff;
+  background: var(--ui-fill);
+  border-color: var(--ui-border);
+  color: var(--ui-primary-hover);
 }
 
 :global(.dark .global-head:hover) {
-  background: rgba(62, 166, 255, 0.12);
+  background: var(--ui-fill);
 }
 
 :global(.dark .theme-subtitle),
 :global(.dark .settings-subtitle) {
-  color: #8ca3b8;
+  color: var(--ui-text-secondary);
 }
 
 :global(.dark .model-item) {
-  border-color: rgba(62, 166, 255, 0.28) !important;
-  background:
-    linear-gradient(135deg, rgba(19, 33, 51, 0.96), rgba(13, 31, 36, 0.96)),
-    radial-gradient(circle at top right, rgba(30, 140, 255, 0.18), transparent 34%);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+  border-color: var(--ui-border) !important;
+  background: var(--ui-bg-elevated);
+  box-shadow: none;
 }
 
 :global(.dark .model-item:hover) {
-  border-color: rgba(62, 166, 255, 0.54) !important;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38);
+  border-color: var(--ui-primary-border) !important;
+  box-shadow: var(--ui-shadow-1-down);
 }
 
 :global(.dark .model-meta) {
-  color: #bfd2e5;
+  color: var(--ui-text-secondary);
 }
 
 :global(.dark .model-meta span:first-child) {
-  color: #66b8ff;
+  color: var(--ui-primary-hover);
 }
 
 :global(.dark .model-url) {
-  color: #8ca3b8;
+  color: var(--ui-text-secondary);
 }
 
 :global(.dark .settings-panel .ant-segmented) {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(62, 166, 255, 0.28);
+  background: var(--ui-fill);
+  border-color: var(--ui-border);
 }
 
 :global(.dark .settings-panel .ant-segmented-item) {
-  color: #a8bed4;
+  color: var(--ui-text-secondary);
 }
 
 :global(.dark .settings-panel .ant-segmented-item-selected) {

@@ -8,6 +8,20 @@ let lastRect = null
 let triggerMode = 'click'
 let dismissGuardTimeout = null
 let settingsBtn = null
+let floatingButtonVisible = true
+
+const UI_ICONS = {
+  check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>',
+  close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg>',
+  copy: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2 2 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  eye: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/></svg>',
+  globe: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20"/><path d="M12 2a15 15 0 0 0 0 20"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>',
+  warning: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v5"/><path d="M12 17h.01"/></svg>',
+  chevron: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>'
+}
 
 function readThemeFromStorage() {
   return new Promise(resolve => {
@@ -47,8 +61,23 @@ async function readTriggerMode() {
   } catch { return 'click' }
 }
 
+async function readFloatingButtonVisible() {
+  try {
+    return new Promise(resolve => {
+      chrome.storage.sync.get({ floatingButtonVisible: true }, (result) => {
+        if (chrome.runtime.lastError) { resolve(true); return }
+        resolve(result.floatingButtonVisible !== false)
+      })
+    })
+  } catch { return true }
+}
+
 // 初始化 triggerMode
 readTriggerMode().then(m => { triggerMode = m })
+readFloatingButtonVisible().then(visible => {
+  floatingButtonVisible = visible
+  if (floatingButtonVisible) injectSettingsButton()
+})
 
 // 监听配置变化
 chrome.storage.onChanged.addListener((changes, area) => {
@@ -67,6 +96,16 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
   if (changes.globalSettingsCollapsed) {
     tsSetGlobalCollapsed(Boolean(changes.globalSettingsCollapsed.newValue))
+  }
+  if (changes.floatingButtonVisible) {
+    floatingButtonVisible = changes.floatingButtonVisible.newValue !== false
+    if (floatingButtonVisible) {
+      injectSettingsButton()
+    } else {
+      closeSettingsPanel()
+      removeSettingsButton()
+    }
+    tsSetFloatingButtonVisible(floatingButtonVisible)
   }
 })
 
@@ -168,7 +207,7 @@ async function showTrigger(rect, text) {
 
   const btn = document.createElement('div')
   btn.className = 'translate-trigger'
-  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z"/></svg>'
+  btn.innerHTML = UI_ICONS.globe
 
   btn.style.top = `${Math.max(0, rect.bottom + 4)}px`
   btn.style.left = `${Math.min(rect.left, window.innerWidth - 36)}px`
@@ -209,7 +248,9 @@ async function showBubble(text) {
   title.textContent = 'AI 翻译'
   const closeBtn = document.createElement('button')
   closeBtn.className = 'translate-bubble-close'
-  closeBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>'
+  closeBtn.title = '关闭'
+  closeBtn.setAttribute('aria-label', '关闭')
+  closeBtn.innerHTML = UI_ICONS.close
   closeBtn.addEventListener('click', close)
   header.appendChild(title)
   header.appendChild(closeBtn)
@@ -247,12 +288,13 @@ async function showBubble(text) {
       const actions = document.createElement('div')
       actions.className = 'translate-bubble-actions'
       const copyBtn = document.createElement('button')
-      copyBtn.textContent = '复制译文'
+      copyBtn.className = 'translate-icon-text-btn'
+      copyBtn.innerHTML = `${UI_ICONS.copy}<span>复制译文</span>`
       copyBtn.addEventListener('click', async () => {
         try {
           await navigator.clipboard.writeText(response.data)
-          copyBtn.textContent = '已复制'
-          setTimeout(() => { copyBtn.textContent = '复制译文' }, 2000)
+          copyBtn.innerHTML = `${UI_ICONS.check}<span>已复制</span>`
+          setTimeout(() => { copyBtn.innerHTML = `${UI_ICONS.copy}<span>复制译文</span>` }, 2000)
         } catch {}
       })
       actions.appendChild(copyBtn)
@@ -306,6 +348,7 @@ const BTN_SIZE = 44
 const BTN_MARGIN = 4
 
 function injectSettingsButton() {
+  if (!floatingButtonVisible) return
   if (settingsBtn) return
 
   settingsBtn = document.createElement('div')
@@ -414,6 +457,12 @@ function injectSettingsButton() {
   document.body.appendChild(settingsBtn)
 }
 
+function removeSettingsButton() {
+  if (!settingsBtn) return
+  settingsBtn.remove()
+  settingsBtn = null
+}
+
 const BTN_POS_KEY = 'floatingBtnPosition'
 
 function saveBtnPosition(pos) {
@@ -468,13 +517,6 @@ const TS_PROVIDER_DEFAULTS = {
   ollama:   { baseUrl: 'http://localhost:11434/v1', model: 'llama3.1', locked: false }
 }
 
-const TS_ICONS = {
-  check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>',
-  edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
-  trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>',
-  chevron: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>'
-}
-
 async function showSettingsPanel() {
   if (document.querySelector('.translate-settings-panel')) return
 
@@ -486,7 +528,7 @@ async function showSettingsPanel() {
   panel.innerHTML = `
     <div class="ts-header">
       <span class="ts-title">AI 翻译设置</span>
-      <button class="ts-close" id="tsClose">✕</button>
+      <button class="ts-close" id="tsClose" title="关闭" aria-label="关闭">${UI_ICONS.close}</button>
     </div>
     <div class="ts-body">
       <div class="ts-global-card">
@@ -495,13 +537,13 @@ async function showSettingsPanel() {
             <div class="ts-control-title">全局设置</div>
             <div class="ts-control-subtitle">独立于模型预设</div>
           </div>
-          <button type="button" class="ts-global-toggle" id="tsGlobalToggle" title="展开/收起全局设置" aria-expanded="true">${TS_ICONS.chevron}</button>
+          <button type="button" class="ts-global-toggle" id="tsGlobalToggle" title="展开/收起全局设置" aria-expanded="true">${UI_ICONS.chevron}</button>
         </div>
         <div class="ts-global-grid">
           <div class="ts-global-item">
             <span>主题</span>
             <div class="ts-segmented" id="ts-theme-segment">
-              <button data-value="system">系统</button>
+              <button data-value="system">跟随系统</button>
               <button data-value="light">浅色</button>
               <button data-value="dark">深色</button>
             </div>
@@ -518,6 +560,13 @@ async function showSettingsPanel() {
             <span>目标语言</span>
             <input type="text" id="ts-globalTargetLang" placeholder="中文" />
           </div>
+          <div class="ts-global-item">
+            <span>悬浮按钮</span>
+            <div class="ts-segmented" id="ts-floating-segment">
+              <button data-value="show">显示</button>
+              <button data-value="hide">隐藏</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -526,7 +575,7 @@ async function showSettingsPanel() {
           <div class="ts-section-title">模型预设</div>
           <div class="ts-section-subtitle" id="tsPresetCount">0 个配置</div>
         </div>
-        <button class="ts-btn ts-btn-primary" id="tsAddPreset">＋ 新增</button>
+        <button class="ts-btn ts-btn-primary" id="tsAddPreset">${UI_ICONS.plus}<span>新增</span></button>
       </div>
 
       <div class="ts-model-list" id="tsPresetList"></div>
@@ -538,7 +587,7 @@ async function showSettingsPanel() {
             <div class="ts-editor-title" id="tsEditorTitle">新增模型预设</div>
             <div class="ts-editor-subtitle">模型信息将保存到预设列表</div>
           </div>
-          <button class="ts-drawer-close" id="tsCancelEdit" title="关闭">✕</button>
+          <button class="ts-drawer-close" id="tsCancelEdit" title="关闭" aria-label="关闭">${UI_ICONS.close}</button>
         </div>
         <div class="ts-editor-body">
         <div class="ts-field">
@@ -559,7 +608,7 @@ async function showSettingsPanel() {
           <label>API Key</label>
           <div class="ts-input-group">
             <input type="password" id="ts-apiKey" spellcheck="false" />
-            <button class="ts-eye" id="tsToggleKey" title="显示/隐藏">👁</button>
+            <button class="ts-eye" id="tsToggleKey" title="显示/隐藏" aria-label="显示/隐藏 API Key">${UI_ICONS.eye}</button>
           </div>
         </div>
         <div class="ts-field">
@@ -582,7 +631,7 @@ async function showSettingsPanel() {
     </div>
     <div class="ts-confirm" id="tsConfirm" hidden>
         <div class="ts-confirm-box">
-          <div class="ts-confirm-icon">!</div>
+          <div class="ts-confirm-icon">${UI_ICONS.warning}</div>
           <div class="ts-confirm-content">
             <div class="ts-confirm-title">删除模型预设</div>
             <div class="ts-confirm-message" id="tsConfirmMessage">确定删除该预设吗？</div>
@@ -651,10 +700,12 @@ function positionSettingsPanel(panel) {
 async function loadTsConfig() {
   const cfg = await chrome.storage.sync.get({
     provider: 'deepseek', apiKey: '', baseUrl: '', model: '',
-    targetLang: '中文', theme: 'system', disableThinking: true, triggerMode: 'click', globalSettingsCollapsed: false
+    targetLang: '中文', theme: 'system', disableThinking: true, triggerMode: 'click',
+    floatingButtonVisible: true, globalSettingsCollapsed: false
   })
   tsSetSegmentValue('ts-theme-segment', cfg.theme || 'system')
   tsSetSegmentValue('ts-trigger-segment', cfg.triggerMode || 'click')
+  tsSetFloatingButtonVisible(cfg.floatingButtonVisible !== false)
   $('ts-globalTargetLang').value = cfg.targetLang || '中文'
   tsSetGlobalCollapsed(Boolean(cfg.globalSettingsCollapsed))
   const panel = document.querySelector('.translate-settings-panel')
@@ -682,12 +733,13 @@ function tsGetEditorConfig() {
 }
 
 async function tsApplyPreset(preset) {
-  const state = await chrome.storage.sync.get({ theme: 'system', triggerMode: 'click', targetLang: '中文' })
+  const state = await chrome.storage.sync.get({ theme: 'system', triggerMode: 'click', targetLang: '中文', floatingButtonVisible: true })
   const config = {
     ...preset,
     theme: state.theme || 'system',
     triggerMode: state.triggerMode || 'click',
-    targetLang: state.targetLang || '中文'
+    targetLang: state.targetLang || '中文',
+    floatingButtonVisible: state.floatingButtonVisible !== false
   }
   await chrome.storage.sync.set(config)
 }
@@ -752,9 +804,9 @@ async function refreshTsPresets(selected) {
         <div class="ts-model-url">${tsEscape(row.baseUrl || '未配置 API 端点')}</div>
       </div>
       <div class="ts-model-actions">
-        <button title="设为使用" data-action="use" data-name="${tsEscapeAttr(row.name)}">${TS_ICONS.check}</button>
-        <button title="编辑" data-action="edit" data-name="${tsEscapeAttr(row.name)}">${TS_ICONS.edit}</button>
-        <button title="删除" data-action="delete" data-name="${tsEscapeAttr(row.name)}">${TS_ICONS.trash}</button>
+        <button title="设为使用" aria-label="设为使用" data-action="use" data-name="${tsEscapeAttr(row.name)}">${UI_ICONS.check}</button>
+        <button title="编辑" aria-label="编辑" data-action="edit" data-name="${tsEscapeAttr(row.name)}">${UI_ICONS.edit}</button>
+        <button title="删除" aria-label="删除" data-action="delete" data-name="${tsEscapeAttr(row.name)}">${UI_ICONS.trash}</button>
       </div>
     `
     list.appendChild(item)
@@ -807,6 +859,10 @@ function tsSetGlobalCollapsed(collapsed) {
   if (!card || !toggle) return
   card.classList.toggle('collapsed', collapsed)
   toggle.setAttribute('aria-expanded', String(!collapsed))
+}
+
+function tsSetFloatingButtonVisible(visible) {
+  tsSetSegmentValue('ts-floating-segment', visible ? 'show' : 'hide')
 }
 
 function tsEscape(value) {
@@ -931,6 +987,15 @@ function setupTsListeners() {
     tsStatus('触发方式已更新')
   })
 
+  $('ts-floating-segment').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-value]')
+    if (!btn) return
+    const visible = btn.dataset.value === 'show'
+    await chrome.storage.sync.set({ floatingButtonVisible: visible })
+    tsSetFloatingButtonVisible(visible)
+    tsStatus(visible ? '悬浮按钮已显示' : '悬浮按钮已隐藏')
+  })
+
   $('tsGlobalHead').addEventListener('click', (e) => {
     e.preventDefault()
     tsToggleGlobalSettings()
@@ -1008,9 +1073,6 @@ function setupTsListeners() {
     tsStatus(mode === 'edit' ? '预设已更新' : '预设已新增')
   })
 }
-
-// 注入悬浮按钮
-injectSettingsButton()
 
 let selectionTimer = null
 document.addEventListener('selectionchange', () => {
