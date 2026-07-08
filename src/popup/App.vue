@@ -1,6 +1,10 @@
 <template>
   <a-config-provider :theme="themeConfig">
     <div class="popup-app" :class="{ dark: isDark }">
+      <div class="popup-brand" aria-hidden="true">
+        <img :src="logoUrl" alt="" />
+      </div>
+      <div class="popup-version">{{ versionText }}</div>
       <a-tabs v-model:activeKey="activeKey" centered :tabBarGutter="40">
         <a-tab-pane key="translate" tab="翻译">
           <TranslatePanel />
@@ -24,6 +28,8 @@ const fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helv
 
 const activeKey = ref('translate')
 const appTheme = ref('system')
+const logoUrl = chrome.runtime.getURL('icons/icon48.png')
+const versionText = `v${chrome.runtime.getManifest().version}`
 
 const prefersDark = window.matchMedia('(prefers-color-scheme: dark)')
 
@@ -173,6 +179,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 <style scoped>
 .popup-app {
+  position: relative;
   height: 460px;
   overflow: hidden;
   padding: 0;
@@ -184,6 +191,34 @@ chrome.storage.onChanged.addListener((changes, area) => {
   font-variant-numeric: tabular-nums;
   color: var(--ui-text);
   background: var(--ui-bg-container);
+}
+.popup-brand {
+  position: absolute;
+  top: 9px;
+  left: 12px;
+  z-index: 2;
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+}
+.popup-brand img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 5px;
+  object-fit: cover;
+}
+.popup-version {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 2;
+  color: var(--ui-text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 22px;
+  pointer-events: none;
+  user-select: none;
 }
 .popup-app :deep(.ant-tabs) {
   overflow: hidden;

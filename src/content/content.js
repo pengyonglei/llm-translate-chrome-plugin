@@ -243,6 +243,12 @@ async function showBubble(text) {
 
   const header = document.createElement('div')
   header.className = 'translate-bubble-header'
+  const headerBrand = document.createElement('div')
+  headerBrand.className = 'translate-bubble-brand'
+  const logo = document.createElement('img')
+  logo.className = 'translate-window-logo'
+  logo.src = chrome.runtime.getURL('icons/icon48.png')
+  logo.alt = ''
   const title = document.createElement('span')
   title.className = 'translate-bubble-title'
   title.textContent = 'AI 翻译'
@@ -252,7 +258,9 @@ async function showBubble(text) {
   closeBtn.setAttribute('aria-label', '关闭')
   closeBtn.innerHTML = UI_ICONS.close
   closeBtn.addEventListener('click', close)
-  header.appendChild(title)
+  headerBrand.appendChild(logo)
+  headerBrand.appendChild(title)
+  header.appendChild(headerBrand)
   header.appendChild(closeBtn)
   bubble.appendChild(header)
 
@@ -580,8 +588,12 @@ async function showSettingsPanel() {
 
   const panel = document.createElement('div')
   panel.className = 'translate-settings-panel'
+  const logoUrl = chrome.runtime.getURL('icons/icon48.png')
   panel.innerHTML = `
     <div class="ts-header">
+      <div class="ts-brand">
+        <img class="translate-window-logo" src="${logoUrl}" alt="" />
+      </div>
       <span class="ts-title">AI 翻译设置</span>
       <button class="ts-close" id="tsClose" title="关闭" aria-label="关闭">${UI_ICONS.close}</button>
     </div>

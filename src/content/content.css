@@ -100,6 +100,20 @@
   align-items: center;
   margin-bottom: 8px;
 }
+.translate-bubble-brand,
+.ts-brand {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.translate-window-logo {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  border-radius: 5px;
+  object-fit: cover;
+}
 .translate-bubble-title {
   font-size: 12px;
   font-weight: 500;
@@ -322,18 +336,23 @@
 
 .ts-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 8px;
   padding: 8px 16px;
   border-bottom: 1px solid var(--translate-split);
 }
 
 .ts-title {
+  min-width: 0;
   font-size: 14px;
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ts-close {
+  margin-left: auto;
   width: 26px;
   height: 26px;
   border: none;
