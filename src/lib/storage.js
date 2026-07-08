@@ -54,6 +54,8 @@ export function isProviderLocked(provider) {
 }
 
 const PRESETS_KEY = 'translationPresets'
+export const HISTORY_KEY = 'translationHistory'
+export const HISTORY_MAX = 200
 
 export async function getPresets() {
   const result = await chrome.storage.sync.get({ [PRESETS_KEY]: {} })
@@ -78,4 +80,50 @@ export async function deletePreset(name) {
   delete presets[name]
   await chrome.storage.sync.set({ [PRESETS_KEY]: presets })
   return Object.keys(presets)
+}
+
+export async function getTranslationHistory() {
+  const result = await chrome.storage.local.get({ [HISTORY_KEY]: [] })
+  return Array.isArray(result[HISTORY_KEY]) ? result[HISTORY_KEY] : []
+}
+
+export async function addTranslationHistory(record) {
+  const history = await getTranslationHistory()
+  const item = normalizeHistoryRecord(record)
+  const next = [item, ...history].slice(0, HISTORY_MAX)
+  await chrome.storage.local.set({ [HISTORY_KEY]: next })
+  return next
+}
+
+export async function clearTranslationHistory() {
+  await chrome.storage.local.set({ [HISTORY_KEY]: [] })
+}
+
+export async function deleteTranslationHistoryItem(id) {
+  const history = await getTranslationHistory()
+  const next = history.filter(item => item.id !== id)
+  await chrome.storage.local.set({ [HISTORY_KEY]: next })
+  return next
+}
+
+function normalizeHistoryRecord(record) {
+  const now = Date.now()
+  return {
+    id: record.id || `${now}-${Math.random().toString(36).slice(2, 8)}`,
+    type: record.type || 'manual',
+    sourceText: limitHistoryText(record.sourceText),
+    translatedText: limitHistoryText(record.translatedText),
+    sourceLang: record.sourceLang || 'auto',
+    targetLang: record.targetLang || '',
+    title: record.title || '',
+    url: record.url || '',
+    mode: record.mode || '',
+    count: Number(record.count || 0),
+    createdAt: record.createdAt || now
+  }
+}
+
+function limitHistoryText(text) {
+  const value = String(text || '').trim()
+  return value.length > 12000 ? `${value.slice(0, 12000)}…` : value
 }

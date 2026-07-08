@@ -14,7 +14,8 @@ let pageTranslateToastTimer = null
 const pageTranslateState = {
   running: false,
   translatedAt: 0,
-  replacements: []
+  replacements: [],
+  cancelRequested: false
 }
 
 const UI_ICONS = {
@@ -291,7 +292,13 @@ async function showBubble(text) {
   positionBubble(bubble)
 
   try {
-    const response = await chrome.runtime.sendMessage({ type: 'translate', text })
+    const response = await chrome.runtime.sendMessage({
+      type: 'translate',
+      text,
+      historyType: 'selection',
+      title: document.title,
+      url: location.href
+    })
     loading.remove()
 
     if (response.ok) {
@@ -410,11 +417,23 @@ function restorePageTranslation(options = {}) {
   return { ok: true, data: { restoredCount } }
 }
 
+function cancelPageTranslation() {
+  if (!pageTranslateState.running) {
+    showPageTranslateToast('当前没有正在进行的网页翻译')
+    return { ok: true, data: { canceled: false } }
+  }
+
+  pageTranslateState.cancelRequested = true
+  showPageTranslateToast('正在取消网页翻译，当前批次结束后停止…', 'info', true, true)
+  return { ok: true, data: { canceled: true } }
+}
+
 async function translateCurrentPage(options = {}) {
   pageTranslateState.running = true
+  pageTranslateState.cancelRequested = false
   close()
   closeSettingsPanel()
-  showPageTranslateToast('正在扫描页面文本…', 'info', true)
+  showPageTranslateToast('正在扫描页面文本…', 'info', true, true)
 
   try {
     const mode = await getPageTranslateMode(options.mode)
@@ -426,39 +445,90 @@ async function translateCurrentPage(options = {}) {
 
     const batches = createPageTranslationBatches(entries)
     let translatedCount = 0
+    const sourceHistory = []
+    const translatedHistory = []
 
     for (const batch of batches) {
-      showPageTranslateToast(`正在翻译当前网页 ${translatedCount}/${entries.length}`, 'info', true)
-      const response = await chrome.runtime.sendMessage({
-        type: 'translateBatch',
-        texts: batch.map(item => item.core),
-        sourceLang: options.sourceLang || 'auto',
-        targetLang: options.targetLang
-      })
+      if (pageTranslateState.cancelRequested) break
 
-      if (!response?.ok) {
-        throw new Error(response?.error || '整页翻译失败')
-      }
+      showPageTranslateToast(`正在翻译当前网页 ${translatedCount}/${entries.length}`, 'info', true, true)
+      const response = await requestPageTranslateBatch(batch, options, entries.length, translatedCount)
 
       const translations = Array.isArray(response.data) ? response.data : []
       if (translations.length !== batch.length) {
         throw new Error('整页翻译返回数量不一致')
       }
 
+      if (pageTranslateState.cancelRequested) break
+
       batch.forEach((entry, index) => {
         if (!entry.node.isConnected) return
         const translated = String(translations[index] || '').trim()
         if (!translated) return
         applyPageTranslation(entry, translated, mode)
+        sourceHistory.push(entry.core)
+        translatedHistory.push(translated)
       })
       translatedCount += batch.length
     }
 
+    if (pageTranslateState.cancelRequested) {
+      showPageTranslateToast(`网页翻译已取消，已完成 ${translatedCount}/${entries.length}`, 'error')
+      return
+    }
+
     pageTranslateState.translatedAt = Date.now()
+    await savePageTranslationHistory({
+      mode,
+      count: translatedCount,
+      sourceLang: options.sourceLang || 'auto',
+      targetLang: options.targetLang,
+      sourceText: sourceHistory.join('\n\n'),
+      translatedText: translatedHistory.join('\n\n')
+    })
     showPageTranslateToast(`${mode === 'compare' ? '对照翻译' : '整页翻译'}完成，共翻译 ${translatedCount} 处文本`, 'success')
   } finally {
     pageTranslateState.running = false
+    pageTranslateState.cancelRequested = false
   }
+}
+
+async function requestPageTranslateBatch(batch, options, total, done) {
+  const payload = {
+    type: 'translateBatch',
+    texts: batch.map(item => item.core),
+    sourceLang: options.sourceLang || 'auto',
+    targetLang: options.targetLang
+  }
+
+  let lastError = null
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (pageTranslateState.cancelRequested) throw new Error('网页翻译已取消')
+    const response = await chrome.runtime.sendMessage(payload)
+    if (response?.ok) return response
+
+    lastError = new Error(response?.error || '整页翻译失败')
+    if (attempt === 0) {
+      showPageTranslateToast(`当前批次失败，正在重试 ${done}/${total}`, 'info', true, true)
+      await new Promise(resolve => setTimeout(resolve, 600))
+    }
+  }
+
+  throw lastError
+}
+
+async function savePageTranslationHistory(record) {
+  try {
+    await chrome.runtime.sendMessage({
+      type: 'addTranslationHistory',
+      record: {
+        type: 'page',
+        title: document.title,
+        url: location.href,
+        ...record
+      }
+    })
+  } catch {}
 }
 
 async function getPageTranslateMode(mode) {
@@ -489,6 +559,7 @@ function restorePageTranslationState() {
   })
   pageTranslateState.replacements = []
   pageTranslateState.translatedAt = 0
+  pageTranslateState.cancelRequested = false
   return restoredCount
 }
 
@@ -591,7 +662,7 @@ function createPageTranslationBatches(entries) {
   return batches
 }
 
-async function showPageTranslateToast(message, type = 'info', persistent = false) {
+async function showPageTranslateToast(message, type = 'info', persistent = false, cancellable = false) {
   let toast = document.querySelector('.translate-page-toast')
   if (!toast) {
     toast = document.createElement('div')
@@ -601,7 +672,25 @@ async function showPageTranslateToast(message, type = 'info', persistent = false
 
   toast.classList.remove('success', 'error')
   if (type === 'success' || type === 'error') toast.classList.add(type)
-  toast.textContent = message
+  toast.textContent = ''
+
+  const text = document.createElement('span')
+  text.className = 'translate-page-toast-text'
+  text.textContent = message
+  toast.appendChild(text)
+
+  if (cancellable && pageTranslateState.running) {
+    const cancelBtn = document.createElement('button')
+    cancelBtn.type = 'button'
+    cancelBtn.className = 'translate-page-toast-cancel'
+    cancelBtn.textContent = '取消'
+    cancelBtn.addEventListener('click', (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      cancelPageTranslation()
+    })
+    toast.appendChild(cancelBtn)
+  }
 
   const themeClass = await getTheme()
   toast.classList.toggle('dark', themeClass === 'dark')
@@ -1551,5 +1640,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   if (request.type === 'restorePageTranslation') {
     sendResponse(restorePageTranslation(request))
+    return
+  }
+  if (request.type === 'cancelPageTranslation') {
+    sendResponse(cancelPageTranslation())
   }
 })

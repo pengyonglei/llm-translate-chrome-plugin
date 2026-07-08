@@ -47,6 +47,11 @@ const cache = new Map()
 const CACHE_TTL = 10 * 60 * 1000
 const CACHE_MAX = 500
 const DEFAULT_TARGET_LANGUAGE = '简体中文'
+const REQUEST_TIMEOUT_MS = 45000
+const REQUEST_RETRY_MAX = 2
+const BATCH_PARSE_RETRY_MAX = 1
+const HISTORY_KEY = 'translationHistory'
+const HISTORY_MAX = 200
 
 function getCacheKey(text, sourceLang, targetLang) {
   return `${sourceLang || 'auto'}::${targetLang || ''}::${text}`
@@ -98,7 +103,7 @@ async function translate(text, config) {
   const sourceInstruction = sourceLang && sourceLang !== 'auto'
     ? `用户提供的文本原文语言是${sourceLang}，`
     : '请自动识别用户提供文本的原文语言，'
-  const systemPrompt = `你是一个专业的翻译助手。${sourceInstruction}请将用户提供的文本翻译成${targetLang}。只返回翻译结果，不要添加任何解释、引号或额外内容。如果文本已经是${targetLang}，直接返回原文。**注意**：如果用户提供的文本中包含换行的格式，在翻译的结果中也一并把格式带上。`
+  const systemPrompt = `你是一个专业的翻译助手。${sourceInstruction}请将用户提供的文本翻译成${targetLang}。只返回翻译结果，不要添加任何解释、引号或额外内容。如果文本已经是${targetLang}，直接返回原文。请尽量保留原始格式：Markdown 标题、列表、表格、引用、链接、代码块围栏、缩进、换行、代码注释标记和项目符号都应保留；代码内容、变量名、命令、URL、占位符和表格分隔符不要翻译，只翻译其中自然语言说明。`
   return requestChatCompletion(systemPrompt, text, config)
 }
 
@@ -135,23 +140,84 @@ async function requestChatCompletion(systemPrompt, userPrompt, config) {
     body.enable_thinking = false
   }
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
-    },
-    body: JSON.stringify(body)
-  })
+  return retryOperation(
+    () => fetchChatCompletion(url, body, apiKey),
+    REQUEST_RETRY_MAX,
+    isRetryableApiError
+  )
+}
 
-  if (!response.ok) {
-    let err
-    try { err = await response.text() } catch {}
-    throw new Error(`API 请求失败 (${response.status}) [${url}]: ${err || '无响应内容'}`)
+async function fetchChatCompletion(url, body, apiKey) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+  let response
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    })
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      const timeout = new Error('API 请求超时，请稍后重试')
+      timeout.retryable = true
+      throw timeout
+    }
+    err.retryable = true
+    throw err
+  } finally {
+    clearTimeout(timer)
   }
 
-  const data = await response.json()
+  if (!response.ok) {
+    let errText
+    try { errText = await response.text() } catch {}
+    const err = new Error(`API 请求失败 (${response.status}) [${url}]: ${errText || '无响应内容'}`)
+    err.status = response.status
+    err.retryable = response.status === 429 || response.status >= 500
+    throw err
+  }
+
+  let data
+  try {
+    data = await response.json()
+  } catch {
+    const err = new Error('API 响应 JSON 解析失败')
+    err.retryable = true
+    throw err
+  }
   return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content || '').trim()
+}
+
+async function retryOperation(operation, maxRetries, shouldRetry) {
+  let lastError
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation()
+    } catch (err) {
+      lastError = err
+      if (attempt >= maxRetries || !shouldRetry(err)) break
+      await wait(500 * (attempt + 1))
+    }
+  }
+  throw lastError
+}
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function isRetryableApiError(err) {
+  return Boolean(err?.retryable)
+}
+
+function isRetryableBatchError(err) {
+  return Boolean(err?.retryable || err?.message?.includes('批量翻译返回'))
 }
 
 async function translateBatch(texts, config) {
@@ -159,9 +225,17 @@ async function translateBatch(texts, config) {
   const sourceInstruction = sourceLang && sourceLang !== 'auto'
     ? `这些文本的原文语言是${sourceLang}，`
     : '请自动识别每段文本的原文语言，'
-  const systemPrompt = `你是一个专业的网页翻译助手。${sourceInstruction}请把用户提供的 JSON 字符串数组逐项翻译成${targetLang}。必须只返回一个 JSON 字符串数组，数组长度和顺序必须与输入完全一致；不要返回 Markdown、解释、编号或额外字段。如果某一项已经是${targetLang}，该项直接返回原文。请保留每一项的标点、数字、专有名词和原有语气。`
-  const raw = await requestChatCompletion(systemPrompt, JSON.stringify(texts), config)
-  return parseJsonArray(raw)
+  const systemPrompt = `你是一个专业的网页翻译助手。${sourceInstruction}请把用户提供的 JSON 字符串数组逐项翻译成${targetLang}。必须只返回一个 JSON 字符串数组，数组长度和顺序必须与输入完全一致；不要返回 Markdown、解释、编号或额外字段。如果某一项已经是${targetLang}，该项直接返回原文。请保留每一项的标点、数字、专有名词、原有语气、列表符号、表格单元含义、代码注释标记和前后空白意图；URL、变量名、命令、代码片段和占位符不要翻译。`
+  return retryOperation(async () => {
+    const raw = await requestChatCompletion(systemPrompt, JSON.stringify(texts), config)
+    const parsed = parseJsonArray(raw)
+    if (parsed.length !== texts.length) {
+      const err = new Error('批量翻译返回数量不一致')
+      err.retryable = true
+      throw err
+    }
+    return parsed
+  }, BATCH_PARSE_RETRY_MAX, isRetryableBatchError)
 }
 
 function parseJsonArray(raw) {
@@ -181,7 +255,44 @@ function parseJsonArray(raw) {
     if (Array.isArray(parsed)) return parsed.map(item => String(item ?? ''))
   }
 
-  throw new Error('批量翻译返回格式异常')
+  const err = new Error('批量翻译返回格式异常')
+  err.retryable = true
+  throw err
+}
+
+async function addTranslationHistory(record) {
+  const history = await getTranslationHistory()
+  const item = normalizeHistoryRecord(record)
+  const next = [item, ...history].slice(0, HISTORY_MAX)
+  await chrome.storage.local.set({ [HISTORY_KEY]: next })
+  return next
+}
+
+async function getTranslationHistory() {
+  const result = await chrome.storage.local.get({ [HISTORY_KEY]: [] })
+  return Array.isArray(result[HISTORY_KEY]) ? result[HISTORY_KEY] : []
+}
+
+function normalizeHistoryRecord(record) {
+  const now = Date.now()
+  return {
+    id: record.id || `${now}-${Math.random().toString(36).slice(2, 8)}`,
+    type: record.type || 'manual',
+    sourceText: limitHistoryText(record.sourceText),
+    translatedText: limitHistoryText(record.translatedText),
+    sourceLang: record.sourceLang || 'auto',
+    targetLang: record.targetLang || '',
+    title: record.title || '',
+    url: record.url || '',
+    mode: record.mode || '',
+    count: Number(record.count || 0),
+    createdAt: record.createdAt || now
+  }
+}
+
+function limitHistoryText(text) {
+  const value = String(text || '').trim()
+  return value.length > 12000 ? `${value.slice(0, 12000)}…` : value
 }
 
 async function translateActiveTabPage(tabId) {
@@ -227,12 +338,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const targetLang = normalizeTargetLanguage(request.targetLang || config.targetLang)
         const cached = getCached(request.text, sourceLang, targetLang)
         if (cached) {
+          await maybeAddTranslationHistory(request, cached, sourceLang, targetLang, sender)
           sendResponse({ ok: true, data: cached })
           return
         }
 
         const result = await translate(request.text, { ...config, sourceLang, targetLang })
         setCache(request.text, sourceLang, targetLang, result)
+        await maybeAddTranslationHistory(request, result, sourceLang, targetLang, sender)
         sendResponse({ ok: true, data: result })
       } catch (err) {
         sendResponse({ ok: false, error: err.message || '翻译失败' })
@@ -267,9 +380,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         if (pending.length) {
           const translated = await translateBatch(pending.map(item => item.text), { ...config, sourceLang, targetLang })
-          if (translated.length !== pending.length) {
-            throw new Error('批量翻译返回数量不一致')
-          }
           translated.forEach((text, index) => {
             const original = pending[index]
             results[original.index] = text
@@ -284,7 +394,32 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     })()
     return true
   }
+
+  if (request.type === 'addTranslationHistory') {
+    (async () => {
+      try {
+        await addTranslationHistory(request.record || {})
+        sendResponse({ ok: true })
+      } catch (err) {
+        sendResponse({ ok: false, error: err.message || '历史记录保存失败' })
+      }
+    })()
+    return true
+  }
 })
+
+async function maybeAddTranslationHistory(request, result, sourceLang, targetLang, sender) {
+  if (!request.historyType) return
+  await addTranslationHistory({
+    type: request.historyType,
+    sourceText: request.text,
+    translatedText: result,
+    sourceLang,
+    targetLang,
+    title: request.title || sender?.tab?.title || '',
+    url: request.url || sender?.tab?.url || ''
+  })
+}
 
 chrome.commands?.onCommand.addListener(async (command) => {
   if (command !== 'translate-page') return

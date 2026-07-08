@@ -9,6 +9,9 @@
         <a-tab-pane key="translate" tab="翻译">
           <TranslatePanel />
         </a-tab-pane>
+        <a-tab-pane key="history" tab="历史">
+          <HistoryPanel />
+        </a-tab-pane>
         <a-tab-pane key="settings" tab="设置">
           <SettingsPanel />
         </a-tab-pane>
@@ -21,6 +24,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { theme } from 'ant-design-vue'
 import TranslatePanel from './components/TranslatePanel.vue'
+import HistoryPanel from './components/HistoryPanel.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 
 const { defaultAlgorithm, darkAlgorithm } = theme

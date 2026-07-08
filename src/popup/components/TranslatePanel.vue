@@ -84,6 +84,16 @@
             <template #icon><UndoOutlined /></template>
           </a-button>
         </a-tooltip>
+        <a-tooltip title="取消网页翻译">
+          <a-button
+            :loading="pageCanceling"
+            :disabled="pageTranslating || pageCanceling"
+            class="page-cancel-btn"
+            @click="cancelCurrentPageTranslation"
+          >
+            <template #icon><StopOutlined /></template>
+          </a-button>
+        </a-tooltip>
       </div>
     </div>
 
@@ -108,7 +118,7 @@
 
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { CheckOutlined, CopyOutlined, GlobalOutlined, UndoOutlined } from '@ant-design/icons-vue'
+import { CheckOutlined, CopyOutlined, GlobalOutlined, StopOutlined, UndoOutlined } from '@ant-design/icons-vue'
 import { COMMON_LANGUAGE_OPTIONS, DEFAULT_TARGET_LANGUAGE, SOURCE_LANGUAGE_OPTIONS, ensureLanguageOption, filterLanguageOption, normalizeLanguageValue } from '../../lib/languages.js'
 import { getConfig } from '../../lib/storage.js'
 
@@ -118,6 +128,7 @@ const error = ref('')
 const translating = ref(false)
 const pageTranslating = ref(false)
 const pageRestoring = ref(false)
+const pageCanceling = ref(false)
 const pageMessage = ref('')
 const copied = ref(false)
 const configText = ref('')
@@ -186,7 +197,8 @@ async function doTranslate() {
       type: 'translate',
       text,
       sourceLang: sourceLang.value,
-      targetLang: normalizeLanguageValue(targetLang.value, DEFAULT_TARGET_LANGUAGE)
+      targetLang: normalizeLanguageValue(targetLang.value, DEFAULT_TARGET_LANGUAGE),
+      historyType: 'manual'
     })
     if (response.ok) {
       result.value = response.data
@@ -258,6 +270,29 @@ async function restoreCurrentPage() {
       : '网页还原失败，请刷新页面后重试'
   } finally {
     pageRestoring.value = false
+  }
+}
+
+async function cancelCurrentPageTranslation() {
+  if (pageCanceling.value || pageTranslating.value) return
+
+  pageCanceling.value = true
+  error.value = ''
+  pageMessage.value = ''
+
+  try {
+    const response = await sendPageTranslationMessage({ type: 'cancelPageTranslation' })
+    if (response?.ok) {
+      pageMessage.value = response.data?.canceled
+        ? '已发送取消请求，当前批次结束后停止'
+        : '当前没有正在进行的网页翻译'
+    } else {
+      error.value = response?.error || '取消网页翻译失败'
+    }
+  } catch (err) {
+    error.value = '取消网页翻译失败，请刷新页面后重试'
+  } finally {
+    pageCanceling.value = false
   }
 }
 
@@ -374,7 +409,7 @@ async function copyResult() {
 }
 .page-action-row {
   display: grid;
-  grid-template-columns: 1fr 34px;
+  grid-template-columns: 1fr 34px 34px;
   gap: 8px;
   align-items: stretch;
 }
@@ -384,7 +419,8 @@ async function copyResult() {
   background: var(--ui-bg-container);
   box-shadow: none;
 }
-.page-restore-btn {
+.page-restore-btn,
+.page-cancel-btn {
   width: 34px;
   padding: 0;
   color: var(--ui-text-secondary);
@@ -393,7 +429,8 @@ async function copyResult() {
   box-shadow: none;
 }
 .page-translate-btn:hover,
-.page-restore-btn:hover {
+.page-restore-btn:hover,
+.page-cancel-btn:hover {
   color: var(--ui-primary-hover);
   border-color: var(--ui-primary-hover);
 }
