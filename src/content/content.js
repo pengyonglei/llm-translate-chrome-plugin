@@ -26,6 +26,7 @@ const UI_ICONS = {
   eye: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/></svg>',
   globe: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20"/><path d="M12 2a15 15 0 0 0 0 20"/></svg>',
   plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>',
+  test: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8Z"/></svg>',
   trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>',
   warning: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v5"/><path d="M12 17h.01"/></svg>',
   chevron: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>'
@@ -1070,6 +1071,18 @@ async function showSettingsPanel() {
           </div>
         </div>
       </div>
+    <div class="ts-confirm ts-alert" id="tsAlert" hidden>
+        <div class="ts-confirm-box">
+          <div class="ts-confirm-icon" id="tsAlertIcon">${UI_ICONS.check}</div>
+          <div class="ts-confirm-content">
+            <div class="ts-confirm-title" id="tsAlertTitle">模型测试</div>
+            <div class="ts-confirm-message" id="tsAlertMessage"></div>
+          </div>
+          <div class="ts-confirm-actions">
+            <button class="ts-btn ts-btn-primary" id="tsAlertOk">知道了</button>
+          </div>
+        </div>
+      </div>
   `
 
   overlay.appendChild(panel)
@@ -1233,6 +1246,7 @@ async function refreshTsPresets(selected) {
       </div>
       <div class="ts-model-actions">
         <button title="设为使用" aria-label="设为使用" data-action="use" data-name="${tsEscapeAttr(row.name)}">${UI_ICONS.check}</button>
+        <button title="测试可用性" aria-label="测试可用性" data-action="test" data-name="${tsEscapeAttr(row.name)}">${UI_ICONS.test}</button>
         <button title="编辑" aria-label="编辑" data-action="edit" data-name="${tsEscapeAttr(row.name)}">${UI_ICONS.edit}</button>
         <button title="删除" aria-label="删除" data-action="delete" data-name="${tsEscapeAttr(row.name)}">${UI_ICONS.trash}</button>
       </div>
@@ -1271,6 +1285,56 @@ function tsIsActivePreset(preset, state) {
   const keys = ['provider', 'apiKey', 'baseUrl', 'model']
   return keys.every(k => (preset[k] || '') === (state[k] || '')) &&
     (preset.disableThinking !== false) === (state.disableThinking !== false)
+}
+
+function tsNormalizePreset(values = {}) {
+  const provider = values.provider || 'deepseek'
+  const defaults = TS_PROVIDER_DEFAULTS[provider] || TS_PROVIDER_DEFAULTS.deepseek
+  return {
+    provider,
+    apiKey: values.apiKey || '',
+    baseUrl: values.baseUrl || defaults.baseUrl,
+    model: values.model || defaults.model,
+    disableThinking: values.disableThinking !== false
+  }
+}
+
+function tsSendRuntimeMessage(message) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(message, (response) => {
+      const err = chrome.runtime.lastError
+      if (err) reject(new Error(err.message))
+      else resolve(response)
+    })
+  })
+}
+
+async function tsTestPreset(name, preset, button) {
+  if (!preset || button?.disabled) return
+  if (button) {
+    button.disabled = true
+    button.classList.add('testing')
+  }
+  try {
+    const response = await tsSendRuntimeMessage({
+      type: 'testModelConnection',
+      config: tsNormalizePreset(preset)
+    })
+    if (!response?.ok) throw new Error(response?.error || '模型测试失败')
+    tsShowAlert(`「${name}」可用`, `连接成功，耗时 ${response.data?.latencyMs ?? '-'} ms。`, 'success')
+  } catch (err) {
+    tsShowAlert(`「${name}」不可用`, tsFormatConnectionError(err), 'error')
+  } finally {
+    if (button) {
+      button.disabled = false
+      button.classList.remove('testing')
+    }
+  }
+}
+
+function tsFormatConnectionError(err) {
+  const msg = err?.message || String(err || '') || '请检查 API Key、端点、模型名称和网络连接。'
+  return msg.length > 500 ? `${msg.slice(0, 500)}...` : msg
 }
 
 function tsSetSegmentValue(id, value) {
@@ -1429,6 +1493,23 @@ function tsHideDeleteConfirm() {
   confirm.dataset.name = ''
 }
 
+function tsShowAlert(title, message, type = 'success') {
+  const alert = $('tsAlert')
+  if (!alert) return
+  alert.classList.toggle('error', type === 'error')
+  alert.classList.toggle('success', type !== 'error')
+  $('tsAlertIcon').innerHTML = type === 'error' ? UI_ICONS.warning : UI_ICONS.check
+  $('tsAlertTitle').textContent = title
+  $('tsAlertMessage').textContent = message
+  alert.hidden = false
+}
+
+function tsHideAlert() {
+  const alert = $('tsAlert')
+  if (!alert) return
+  alert.hidden = true
+}
+
 async function tsDeletePreset(name) {
   if (!name) return
   const presets = await chrome.storage.sync.get({ translationPresets: {} }).then(r => r.translationPresets)
@@ -1563,11 +1644,18 @@ function setupTsListeners() {
       await chrome.storage.sync.set({ activePresetName: name })
       await refreshTsPresets()
       tsStatus(`已使用「${name}」`)
+    } else if (btn.dataset.action === 'test') {
+      await tsTestPreset(name, preset, btn)
     } else if (btn.dataset.action === 'edit') {
       await tsOpenEditor(name, preset)
     } else if (btn.dataset.action === 'delete') {
       tsShowDeleteConfirm(name)
     }
+  })
+
+  $('tsAlertOk').addEventListener('click', tsHideAlert)
+  $('tsAlert').addEventListener('click', (e) => {
+    if (e.target === $('tsAlert')) tsHideAlert()
   })
 
   $('tsConfirmCancel').addEventListener('click', tsHideDeleteConfirm)

@@ -864,7 +864,7 @@
 }
 
 .ts-model-actions {
-  flex: 0 0 104px;
+  flex: 0 0 141px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -902,6 +902,21 @@
 .ts-model-actions button[data-action="delete"] {
   border-color: var(--translate-error-border);
   color: var(--translate-error);
+}
+
+.ts-model-actions button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.ts-model-actions button.testing svg {
+  animation: ts-spin 0.9s linear infinite;
+}
+
+@keyframes ts-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .ts-editor-drawer {
@@ -1270,6 +1285,16 @@
   height: 28px;
   margin-bottom: 8px;
   border-radius: 50%;
+  background: var(--translate-error-bg);
+  color: var(--translate-error);
+}
+
+.ts-alert.success .ts-confirm-icon {
+  background: var(--translate-success-bg);
+  color: var(--translate-success);
+}
+
+.ts-alert.error .ts-confirm-icon {
   background: var(--translate-error-bg);
   color: var(--translate-error);
 }

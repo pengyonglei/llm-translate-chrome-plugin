@@ -99,6 +99,16 @@
                 <template #icon><CheckOutlined /></template>
               </a-button>
             </a-tooltip>
+            <a-tooltip title="测试可用性">
+              <a-button
+                shape="circle"
+                size="small"
+                :loading="isTestingPreset(item.name)"
+                @click="testModel(item.name)"
+              >
+                <template #icon><ApiOutlined /></template>
+              </a-button>
+            </a-tooltip>
             <a-tooltip title="编辑">
               <a-button shape="circle" size="small" @click="openEdit(item.name)">
                 <template #icon><EditOutlined /></template>
@@ -166,7 +176,7 @@
 
 <script setup>
 import { computed, createVNode, reactive, ref, onMounted } from 'vue'
-import { ExclamationCircleOutlined, CheckOutlined, DeleteOutlined, EditOutlined, PlusOutlined, DownOutlined } from '@ant-design/icons-vue'
+import { ExclamationCircleOutlined, CheckOutlined, DeleteOutlined, EditOutlined, PlusOutlined, DownOutlined, ApiOutlined } from '@ant-design/icons-vue'
 import { Modal } from 'ant-design-vue'
 import { COMMON_LANGUAGE_OPTIONS, DEFAULT_TARGET_LANGUAGE, ensureLanguageOption, filterLanguageOption, normalizeLanguageValue } from '../../lib/languages.js'
 import { getConfig, getPresets, setConfig } from '../../lib/storage.js'
@@ -198,6 +208,7 @@ const selectedTriggerMode = ref('click')
 const selectedTargetLang = ref(DEFAULT_TARGET_LANGUAGE)
 const selectedFloatingButtonVisible = ref(true)
 const globalSettingsCollapsed = ref(false)
+const testingPresetNames = ref(new Set())
 
 const themeOptions = [
   { label: '跟随系统', value: 'system' },
@@ -354,6 +365,62 @@ async function setActive(name) {
   await chrome.storage.sync.set({ activePresetName: name })
   activePresetName.value = name
   showToast(`已使用「${name}」`)
+}
+
+async function testModel(name) {
+  const preset = presets.value[name]
+  if (!preset || isTestingPreset(name)) return
+
+  setPresetTesting(name, true)
+  try {
+    const response = await sendRuntimeMessage({
+      type: 'testModelConnection',
+      config: normalizePreset(preset)
+    })
+    if (!response?.ok) throw new Error(response?.error || '模型测试失败')
+
+    Modal.success({
+      title: `「${name}」可用`,
+      content: `连接成功，耗时 ${response.data?.latencyMs ?? '-'} ms。`,
+      centered: true,
+      okText: '知道了'
+    })
+  } catch (err) {
+    Modal.error({
+      title: `「${name}」不可用`,
+      content: formatConnectionError(err),
+      centered: true,
+      okText: '知道了'
+    })
+  } finally {
+    setPresetTesting(name, false)
+  }
+}
+
+function isTestingPreset(name) {
+  return testingPresetNames.value.has(name)
+}
+
+function setPresetTesting(name, testing) {
+  const next = new Set(testingPresetNames.value)
+  if (testing) next.add(name)
+  else next.delete(name)
+  testingPresetNames.value = next
+}
+
+function sendRuntimeMessage(message) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(message, (response) => {
+      const err = chrome.runtime.lastError
+      if (err) reject(new Error(err.message))
+      else resolve(response)
+    })
+  })
+}
+
+function formatConnectionError(err) {
+  const msg = err?.message || String(err || '') || '请检查 API Key、端点、模型名称和网络连接。'
+  return msg.length > 500 ? `${msg.slice(0, 500)}...` : msg
 }
 
 function deleteModel(name) {

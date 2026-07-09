@@ -52,6 +52,8 @@ const REQUEST_RETRY_MAX = 2
 const BATCH_PARSE_RETRY_MAX = 1
 const HISTORY_KEY = 'translationHistory'
 const HISTORY_MAX = 200
+const TEST_SYSTEM_PROMPT = '你是一个 API 连通性测试助手。'
+const TEST_USER_PROMPT = '请只回复 OK。'
 
 function getCacheKey(text, sourceLang, targetLang) {
   return `${sourceLang || 'auto'}::${targetLang || ''}::${text}`
@@ -79,11 +81,19 @@ async function getConfig() {
     provider: 'deepseek', apiKey: '', baseUrl: '', model: '',
     targetLang: DEFAULT_TARGET_LANGUAGE, theme: 'system', disableThinking: true
   }
-  const result = await chrome.storage.sync.get(DEFAULTS)
+  const result = normalizeApiConfig(await chrome.storage.sync.get(DEFAULTS))
+  result.targetLang = normalizeTargetLanguage(result.targetLang)
+  return result
+}
+
+function normalizeApiConfig(config = {}) {
+  const result = { ...config }
+  result.provider = result.provider || 'deepseek'
   const defaults = PROVIDER_DEFAULTS[result.provider]
   if (!result.baseUrl && defaults) result.baseUrl = defaults.baseUrl
   if (!result.model && defaults) result.model = defaults.model
-  result.targetLang = normalizeTargetLanguage(result.targetLang)
+  result.apiKey = result.apiKey || ''
+  result.disableThinking = result.disableThinking !== false
   return result
 }
 
@@ -108,22 +118,69 @@ async function translate(text, config) {
 }
 
 async function requestChatCompletion(systemPrompt, userPrompt, config) {
-  const { provider, baseUrl, apiKey, model, disableThinking } = config
+  const { baseUrl, apiKey, model } = config
   if (!baseUrl || !model) {
     throw new Error('请完成 API 配置')
   }
 
   const url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`
+  const body = createChatCompletionBody(systemPrompt, userPrompt, config)
 
+  return retryOperation(
+    () => fetchChatCompletion(url, body, apiKey),
+    REQUEST_RETRY_MAX,
+    isRetryableApiError
+  )
+}
+
+async function testModelConnection(config) {
+  const normalized = normalizeApiConfig(config)
+  const { baseUrl, apiKey, model } = normalized
+  if (!baseUrl || !model) {
+    throw new Error('请完成 API 配置')
+  }
+
+  const activeConfig = await getConfig()
+  if (baseUrl !== activeConfig.baseUrl) {
+    await updateOriginRule(baseUrl)
+  }
+
+  const url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`
+  const body = createChatCompletionBody(TEST_SYSTEM_PROMPT, TEST_USER_PROMPT, normalized, {
+    temperature: 0,
+    maxTokens: 16
+  })
+  try {
+    const startTime = Date.now()
+    const content = await fetchChatCompletion(url, body, apiKey)
+    return {
+      latencyMs: Date.now() - startTime,
+      content
+    }
+  } finally {
+    if (baseUrl !== activeConfig.baseUrl && activeConfig.baseUrl) {
+      await updateOriginRule(activeConfig.baseUrl)
+    }
+  }
+}
+
+function createChatCompletionBody(systemPrompt, userPrompt, config, options = {}) {
   const body = {
-    model,
+    model: config.model,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt }
     ],
-    temperature: 0.3,
-    max_tokens: 4096
+    temperature: options.temperature ?? 0.3,
+    max_tokens: options.maxTokens ?? 4096
   }
+
+  applyProviderBodyOptions(body, config)
+  return body
+}
+
+function applyProviderBodyOptions(body, config) {
+  const { provider, disableThinking } = config
 
   // DeepSeek：开关只控制是否禁用思考模式；开启时不设置 reasoning_effort，使用平台默认强度。
   if (provider === 'deepseek') {
@@ -139,12 +196,6 @@ async function requestChatCompletion(systemPrompt, userPrompt, config) {
   if (provider === 'bailian' && disableThinking) {
     body.enable_thinking = false
   }
-
-  return retryOperation(
-    () => fetchChatCompletion(url, body, apiKey),
-    REQUEST_RETRY_MAX,
-    isRetryableApiError
-  )
 }
 
 async function fetchChatCompletion(url, body, apiKey) {
@@ -349,6 +400,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ ok: true, data: result })
       } catch (err) {
         sendResponse({ ok: false, error: err.message || '翻译失败' })
+      }
+    })()
+    return true
+  }
+
+  if (request.type === 'testModelConnection') {
+    (async () => {
+      try {
+        const result = await testModelConnection(request.config || {})
+        sendResponse({ ok: true, data: result })
+      } catch (err) {
+        sendResponse({ ok: false, error: err.message || '模型测试失败' })
       }
     })()
     return true
