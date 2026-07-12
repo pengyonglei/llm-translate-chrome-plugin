@@ -51,8 +51,8 @@
   "commands": {
     "translate-page": {
       "suggested_key": {
-        "default": "Alt+Shift+T",
-        "mac": "Alt+Shift+T"
+        "default": "Alt+T",
+        "mac": "Alt+T"
       },
       "description": "翻译当前网页"
     }

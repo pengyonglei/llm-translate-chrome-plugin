@@ -72,7 +72,7 @@
           @click="translateCurrentPage"
         >
           <template #icon><GlobalOutlined /></template>
-          {{ pageTranslating ? '正在启动…' : '翻译当前网页 Alt+Shift+T' }}
+          {{ pageTranslating ? '正在启动…' : '翻译当前网页 Alt+T' }}
         </a-button>
         <a-tooltip title="还原网页">
           <a-button
