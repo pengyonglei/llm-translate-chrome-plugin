@@ -1,63 +1,62 @@
 <template>
   <div class="settings-panel">
-    <div class="global-strip" :class="{ collapsed: globalSettingsCollapsed }">
-      <div class="global-head" @click="toggleGlobalSettings">
-        <div>
-          <div class="theme-title">全局设置</div>
-          <div class="theme-subtitle">独立于模型预设</div>
+    <a-collapse
+      class="global-collapse"
+      :active-key="globalSettingsCollapsed ? [] : ['global']"
+      @change="onGlobalCollapseChange"
+      :bordered="false"
+      ghost
+    >
+      <a-collapse-panel key="global">
+        <template #header>
+          <div class="global-header">
+            <span class="global-header-title">全局设置</span>
+            <span class="global-header-subtitle">独立于模型预设</span>
+          </div>
+        </template>
+        <div class="global-grid">
+          <div class="global-item global-item-theme">
+            <span>主题</span>
+            <a-segmented
+              v-model:value="selectedTheme"
+              size="small"
+              :options="themeOptions"
+              @change="saveTheme"
+            />
+          </div>
+          <div class="global-item global-item-trigger">
+            <span>翻译触发</span>
+            <a-segmented
+              v-model:value="selectedTriggerMode"
+              size="small"
+              :options="triggerModeOptions"
+              @change="saveTriggerMode"
+            />
+          </div>
+          <div class="global-item global-item-lang">
+            <span>目标语言</span>
+            <a-select
+              v-model:value="selectedTargetLang"
+              size="small"
+              show-search
+              :list-height="128"
+              :options="globalTargetLangOptions"
+              :filter-option="filterLanguageOption"
+              @change="saveTargetLang"
+            />
+          </div>
+          <div class="global-item global-item-floating">
+            <span>悬浮按钮</span>
+            <a-switch
+              v-model:checked="selectedFloatingButtonVisible"
+              checked-children="显示"
+              un-checked-children="隐藏"
+              @change="saveFloatingButtonVisible"
+            />
+          </div>
         </div>
-        <a-button
-          class="global-toggle"
-          shape="circle"
-          size="small"
-          :aria-expanded="!globalSettingsCollapsed"
-          @click.stop="toggleGlobalSettings"
-        >
-          <template #icon><DownOutlined /></template>
-        </a-button>
-      </div>
-      <div class="global-grid">
-        <div class="global-item global-item-theme">
-          <span>主题</span>
-          <a-segmented
-            v-model:value="selectedTheme"
-            size="small"
-            :options="themeOptions"
-            @change="saveTheme"
-          />
-        </div>
-        <div class="global-item global-item-trigger">
-          <span>翻译触发</span>
-          <a-segmented
-            v-model:value="selectedTriggerMode"
-            size="small"
-            :options="triggerModeOptions"
-            @change="saveTriggerMode"
-          />
-        </div>
-        <div class="global-item global-item-lang">
-          <span>目标语言</span>
-          <a-select
-            v-model:value="selectedTargetLang"
-            size="small"
-            show-search
-            :list-height="128"
-            :options="globalTargetLangOptions"
-            :filter-option="filterLanguageOption"
-            @change="saveTargetLang"
-          />
-        </div>
-        <div class="global-item global-item-floating">
-          <span>悬浮按钮</span>
-          <a-switch
-            v-model:checked="selectedFloatingButtonVisible"
-            checked-children="显示"
-            un-checked-children="隐藏"
-            @change="saveFloatingButtonVisible"
-          />
-        </div>
-      </div>
-    </div>
+      </a-collapse-panel>
+    </a-collapse>
 
     <div class="settings-toolbar">
       <div>
@@ -595,9 +594,10 @@ async function saveFloatingButtonVisible(visible) {
   showToast(visible ? '悬浮按钮已显示' : '悬浮按钮已隐藏')
 }
 
-async function toggleGlobalSettings() {
-  globalSettingsCollapsed.value = !globalSettingsCollapsed.value
-  await chrome.storage.sync.set({ globalSettingsCollapsed: globalSettingsCollapsed.value })
+function onGlobalCollapseChange(keys) {
+  const collapsed = !keys.includes('global')
+  globalSettingsCollapsed.value = collapsed
+  chrome.storage.sync.set({ globalSettingsCollapsed: collapsed })
 }
 
 function providerName(provider) {
@@ -639,63 +639,47 @@ function showToast(msg) {
   color: var(--ui-text);
 }
 
-.global-strip {
-  padding: 10px;
+.global-collapse {
   margin-bottom: 10px;
+  background: transparent;
+}
+
+.global-collapse :deep(.ant-collapse-item) {
   border: 1px solid var(--ui-border);
   border-radius: 8px;
   background: var(--ui-bg-container);
-  box-shadow: none;
-}
-
-.global-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin: -4px -4px 8px;
-  padding: 4px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.16s ease;
-}
-
-.global-head:hover {
-  background: var(--ui-fill);
-}
-
-.global-toggle {
-  flex: 0 0 auto;
-  color: var(--ui-primary);
-  transition: transform 0.18s ease, color 0.18s ease;
-}
-
-.global-toggle :deep(.anticon) {
-  font-size: 8px;
-  transition: transform 0.18s ease;
-}
-
-.global-strip.collapsed .global-head {
   margin-bottom: 0;
 }
 
-.global-strip.collapsed .global-toggle :deep(.anticon) {
-  transform: rotate(-90deg);
+.global-collapse :deep(.ant-collapse-header) {
+  padding: 10px 12px;
+  align-items: center;
+}
+
+.global-collapse :deep(.ant-collapse-content-box) {
+  padding: 4px 12px 12px;
+}
+
+.global-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.global-header-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.global-header-subtitle {
+  font-size: 12px;
+  color: var(--ui-text-secondary);
 }
 
 .global-grid {
   display: flex;
   flex-direction: column;
   gap: 9px;
-  max-height: 176px;
-  overflow: hidden;
-  transition: max-height 0.2s ease, opacity 0.18s ease, margin-top 0.18s ease;
-}
-
-.global-strip.collapsed .global-grid {
-  max-height: 0;
-  opacity: 0;
-  pointer-events: none;
 }
 
 .global-item {
@@ -753,18 +737,6 @@ function showToast(msg) {
 
 .global-item :deep(.ant-segmented-thumb) {
   min-height: 22px;
-}
-
-.theme-title {
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 22px;
-}
-
-.theme-subtitle {
-  color: var(--ui-text-secondary);
-  font-size: 12px;
-  line-height: 20px;
 }
 
 .settings-toolbar {
@@ -947,27 +919,15 @@ function showToast(msg) {
   background: var(--ui-bg-layout);
 }
 
-:global(.dark .global-strip) {
+:global(.dark .global-collapse .ant-collapse-item) {
   border-color: var(--ui-border);
   background: var(--ui-bg-container);
-  box-shadow: none;
 }
 
 :global(.dark .global-item span) {
   color: var(--ui-text-secondary);
 }
 
-:global(.dark .global-toggle) {
-  background: var(--ui-fill);
-  border-color: var(--ui-border);
-  color: var(--ui-primary-hover);
-}
-
-:global(.dark .global-head:hover) {
-  background: var(--ui-fill);
-}
-
-:global(.dark .theme-subtitle),
 :global(.dark .settings-subtitle) {
   color: var(--ui-text-secondary);
 }
