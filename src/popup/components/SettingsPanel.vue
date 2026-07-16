@@ -65,8 +65,7 @@
         <div class="settings-subtitle">{{ presetRows.length }} 个配置</div>
       </div>
       <a-button type="primary" size="small" @click="openAdd">
-        <template #icon><PlusOutlined /></template>
-        新增
+        + 新增
       </a-button>
     </div>
 
@@ -138,13 +137,61 @@
         </a-form-item>
 
         <a-form-item label="LLM 提供商">
-          <a-select v-model:value="form.provider" @change="onProviderChange">
-            <a-select-option value="deepseek">DeepSeek</a-select-option>
-            <a-select-option value="bailian">阿里云百炼</a-select-option>
-            <a-select-option value="zhipu">智谱 AI</a-select-option>
-            <a-select-option value="openai">OpenAI 兼容</a-select-option>
-            <a-select-option value="ollama">Ollama</a-select-option>
-          </a-select>
+          <a-popover
+            trigger="click"
+            placement="bottomLeft"
+            overlay-class-name="provider-dropdown"
+            :open="providerDropdownOpen"
+            @openChange="v => providerDropdownOpen = v"
+          >
+            <div class="provider-select-trigger" @click="providerDropdownOpen = !providerDropdownOpen">
+              <div class="provider-select-value">
+                <img class="provider-logo" :src="currentProviderLogo.icon" :alt="PROVIDER_NAMES[form.provider]" />
+                <span>{{ PROVIDER_NAMES[form.provider] }}</span>
+              </div>
+              <DownOutlined class="provider-select-arrow" />
+            </div>
+            <template #content>
+              <div class="provider-dropdown-body">
+                <div class="provider-tab-bar">
+                  <div
+                    class="provider-tab-btn"
+                    :class="{ active: selectedProviderTab === 'providers' }"
+                    @click.stop="selectedProviderTab = 'providers'"
+                  >模型供应商</div>
+                  <div
+                    class="provider-tab-btn"
+                    :class="{ active: selectedProviderTab === 'custom' }"
+                    @click.stop="selectedProviderTab = 'custom'"
+                  >自定义模型</div>
+                </div>
+                <div v-show="selectedProviderTab === 'providers'" class="provider-tab-content">
+                  <div
+                    v-for="p in providerProviders"
+                    :key="p.value"
+                    class="provider-option"
+                    :class="{ selected: form.provider === p.value }"
+                    @click.stop="selectProvider(p.value)"
+                  >
+                    <img class="provider-logo" :src="p.logo.icon" :alt="p.label" />
+                    <span class="provider-option-name">{{ p.label }}</span>
+                  </div>
+                </div>
+                <div v-show="selectedProviderTab === 'custom'" class="provider-tab-content">
+                  <div
+                    v-for="p in customProviders"
+                    :key="p.value"
+                    class="provider-option"
+                    :class="{ selected: form.provider === p.value }"
+                    @click.stop="selectProvider(p.value)"
+                  >
+                    <img class="provider-logo" :src="p.logo.icon" :alt="p.label" />
+                    <span class="provider-option-name">{{ p.label }}</span>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </a-popover>
         </a-form-item>
 
         <a-form-item label="API Key">
@@ -184,18 +231,54 @@ import { getConfig, getPresets, setConfig } from '../../lib/storage.js'
 const PROVIDER_NAMES = {
   deepseek: 'DeepSeek',
   bailian: '阿里云百炼',
+  volcengine: '火山方舟',
+  minimax: 'MiniMax',
   zhipu: '智谱 AI',
   openai: 'OpenAI 兼容',
   ollama: 'Ollama'
 }
 
 const PROVIDER_DEFAULTS = {
-  deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-v4-flash', locked: true },
-  bailian:  { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', locked: true },
-  zhipu:    { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.2', locked: true },
-  openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', locked: false },
-  ollama:   { baseUrl: 'http://localhost:11434/v1', model: 'qwen2.5', locked: false }
+  deepseek:   { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-v4-flash', locked: true },
+  bailian:    { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', locked: true },
+  volcengine: { baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', model: 'doubao-1-5-pro-32k-250115', locked: true },
+  minimax:    { baseUrl: 'https://api.minimaxi.com/v1', model: 'MiniMax-M3', locked: true },
+  zhipu:      { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.2', locked: true },
+  openai:     { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', locked: false },
+  ollama:     { baseUrl: 'http://localhost:11434/v1', model: 'qwen2.5', locked: false }
 }
+
+const PROVIDER_LOGOS = {
+  deepseek:   { icon: '/icons/llm-providers/deepseek-color.svg' },
+  bailian:    { icon: '/icons/llm-providers/bailian-color.svg' },
+  volcengine: { icon: '/icons/llm-providers/bytedance-color.svg' },
+  minimax:    { icon: '/icons/llm-providers/minimax-color.svg' },
+  zhipu:      { icon: '/icons/llm-providers/zhipu-color.svg' },
+  openai:     { icon: '/icons/llm-providers/openai.svg' },
+  ollama:     { icon: '/icons/llm-providers/ollama.svg' }
+}
+
+const ALL_PROVIDER_OPTIONS = [
+  { value: 'deepseek',   label: 'DeepSeek',    group: 'providers' },
+  { value: 'bailian',    label: '阿里云百炼',  group: 'providers' },
+  { value: 'volcengine', label: '火山方舟',     group: 'providers' },
+  { value: 'minimax',    label: 'MiniMax',     group: 'providers' },
+  { value: 'zhipu',      label: '智谱 AI',     group: 'providers' },
+  { value: 'openai',     label: 'OpenAI 兼容', group: 'custom' },
+  { value: 'ollama',     label: 'Ollama',      group: 'custom' }
+]
+
+const providerProviders = ALL_PROVIDER_OPTIONS.filter(p => p.group === 'providers').map(p => ({
+  ...p,
+  logo: PROVIDER_LOGOS[p.value]
+}))
+
+const customProviders = ALL_PROVIDER_OPTIONS.filter(p => p.group === 'custom').map(p => ({
+  ...p,
+  logo: PROVIDER_LOGOS[p.value]
+}))
+
+const currentProviderLogo = computed(() => PROVIDER_LOGOS[form.provider] || { icon: '' })
 
 const presets = ref({})
 const activePresetName = ref('')
@@ -209,6 +292,8 @@ const selectedTargetLang = ref(DEFAULT_TARGET_LANGUAGE)
 const selectedFloatingButtonVisible = ref(true)
 const globalSettingsCollapsed = ref(false)
 const testingPresetNames = ref(new Set())
+const providerDropdownOpen = ref(false)
+const selectedProviderTab = ref('providers')
 
 const themeOptions = [
   { label: '跟随系统', value: 'system' },
@@ -306,6 +391,12 @@ function onProviderChange(provider) {
   updatePlaceholders(provider, true)
 }
 
+function selectProvider(provider) {
+  form.provider = provider
+  updatePlaceholders(provider, true)
+  providerDropdownOpen.value = false
+}
+
 function updatePlaceholders(provider, resetValues = false) {
   const d = PROVIDER_DEFAULTS[provider] || PROVIDER_DEFAULTS.deepseek
   isLocked.value = d.locked
@@ -315,7 +406,11 @@ function updatePlaceholders(provider, resetValues = false) {
     ? 'Ollama 通常无需填写'
     : provider === 'zhipu'
       ? '请输入智谱 API Key'
-      : 'sk-...'
+      : provider === 'volcengine'
+        ? '请输入火山方舟 API Key'
+        : provider === 'minimax'
+          ? '请输入 MiniMax API Key'
+          : 'sk-...'
   if (d.locked || resetValues) form.baseUrl = d.baseUrl
   if (resetValues) form.model = d.model
 }
@@ -557,6 +652,7 @@ function showToast(msg) {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   margin: -4px -4px 8px;
   padding: 4px;
   border-radius: 8px;
@@ -575,7 +671,7 @@ function showToast(msg) {
 }
 
 .global-toggle :deep(.anticon) {
-  font-size: 10px;
+  font-size: 8px;
   transition: transform 0.18s ease;
 }
 
@@ -788,8 +884,23 @@ function showToast(msg) {
   line-height: 1;
 }
 
+.settings-toolbar :deep(.ant-btn) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.settings-toolbar :deep(.ant-btn-icon) {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  margin-inline-end: 0;
+}
+
 .settings-toolbar :deep(.anticon) {
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1;
 }
 
@@ -895,5 +1006,152 @@ function showToast(msg) {
 
 :global(.dark .settings-panel .ant-segmented-item-selected) {
   color: #fff;
+}
+
+.provider-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--ui-border);
+  border-radius: 6px;
+  background: var(--ui-bg-container);
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.provider-select-trigger:hover {
+  border-color: var(--ui-primary);
+}
+
+.provider-select-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.provider-select-value span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.provider-select-arrow {
+  flex: 0 0 auto;
+  font-size: 9px;
+  color: var(--ui-text-secondary);
+}
+
+.provider-logo {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+</style>
+
+<style>
+.provider-dropdown {
+  z-index: 1060;
+}
+
+.provider-dropdown .ant-popover-inner {
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.provider-dropdown-body {
+  width: 240px;
+}
+
+.provider-tab-bar {
+  display: flex;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.provider-tab-btn {
+  flex: 1;
+  text-align: center;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+  user-select: none;
+}
+
+.provider-tab-btn:hover {
+  color: #333;
+}
+
+.provider-tab-btn.active {
+  color: #1677ff;
+  border-bottom-color: #1677ff;
+}
+
+.provider-tab-content {
+  padding: 4px 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.provider-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.12s;
+}
+
+.provider-option:hover {
+  background: #f5f5f5;
+}
+
+.provider-option.selected {
+  background: #e6f4ff;
+  color: #1677ff;
+  font-weight: 500;
+}
+
+.provider-option-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:global(.dark .provider-tab-bar) {
+  background: #1f1f1f;
+  border-bottom-color: #303030;
+}
+
+:global(.dark .provider-tab-btn) {
+  color: #999;
+}
+
+:global(.dark .provider-tab-btn:hover) {
+  color: #ccc;
+}
+
+:global(.dark .provider-tab-btn.active) {
+  color: #1668dc;
+  border-bottom-color: #1668dc;
+}
+
+:global(.dark .provider-option:hover) {
+  background: #2a2a2a;
+}
+
+:global(.dark .provider-option.selected) {
+  background: #111b26;
+  color: #1668dc;
 }
 </style>

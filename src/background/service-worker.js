@@ -1,11 +1,13 @@
 const DNR_RULE_ID = 1001
 
 const PROVIDER_DEFAULTS = {
-  deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', baseUrlLocked: true },
-  bailian:  { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', baseUrlLocked: true },
-  zhipu:    { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.2', baseUrlLocked: true },
-  openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', baseUrlLocked: false },
-  ollama:   { baseUrl: 'http://localhost:11434/v1', model: 'llama3.1', baseUrlLocked: false }
+  deepseek:   { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', baseUrlLocked: true },
+  bailian:    { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', baseUrlLocked: true },
+  volcengine: { baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', model: 'doubao-1-5-pro-32k-250115', baseUrlLocked: true },
+  minimax:    { baseUrl: 'https://api.minimaxi.com/v1', model: 'MiniMax-M3', baseUrlLocked: true },
+  zhipu:      { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.2', baseUrlLocked: true },
+  openai:     { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', baseUrlLocked: false },
+  ollama:     { baseUrl: 'http://localhost:11434/v1', model: 'llama3.1', baseUrlLocked: false }
 }
 
 // 用 declarativeNetRequest 移除内网 API 请求的 Origin 头，避免 403
@@ -192,9 +194,23 @@ function applyProviderBodyOptions(body, config) {
     body.thinking = { type: disableThinking ? 'disabled' : 'enabled' }
   }
 
-  // 阿里云百炼：关闭深度思考模式
+  // 阿里云百炼：通过 enable_thinking 控制深度思考模式
   if (provider === 'bailian' && disableThinking) {
     body.enable_thinking = false
+  }
+
+  // 火山方舟：使用 thinking.type 控制思考模式，兼容 OpenAI 格式
+  if (provider === 'volcengine') {
+    body.thinking = { type: disableThinking ? 'disabled' : 'enabled' }
+  }
+
+  // MiniMax：使用 thinking.type 控制思考模式；adaptive 为开启，disabled 为关闭。
+  // M2.x 系列模型 thinking 无法关闭，传入 disabled 仍会保持开启。
+  // 必须同时设置 reasoning_split: true，将思考内容拆分到 reasoning_details 字段，
+  // 否则思考内容会以 <think> 标签混入 content 字段。
+  if (provider === 'minimax') {
+    body.thinking = { type: disableThinking ? 'disabled' : 'adaptive' }
+    body.reasoning_split = true
   }
 }
 
