@@ -250,7 +250,7 @@ const PROVIDER_DEFAULTS = {
 const PROVIDER_LOGOS = {
   deepseek:   { icon: '/icons/llm-providers/deepseek-color.svg' },
   bailian:    { icon: '/icons/llm-providers/bailian-color.svg' },
-  volcengine: { icon: '/icons/llm-providers/bytedance-color.svg' },
+  volcengine: { icon: '/icons/llm-providers/volcengine-color.svg' },
   minimax:    { icon: '/icons/llm-providers/minimax-color.svg' },
   zhipu:      { icon: '/icons/llm-providers/zhipu-color.svg' },
   openai:     { icon: '/icons/llm-providers/openai.svg' },
@@ -288,7 +288,7 @@ const editingName = ref('')
 const selectedTheme = ref('system')
 const selectedTriggerMode = ref('click')
 const selectedTargetLang = ref(DEFAULT_TARGET_LANGUAGE)
-const selectedFloatingButtonVisible = ref(true)
+const selectedFloatingButtonVisible = ref(false)
 const globalSettingsCollapsed = ref(false)
 const testingPresetNames = ref(new Set())
 const providerDropdownOpen = ref(false)
@@ -350,7 +350,7 @@ async function loadData() {
       theme: 'system',
       triggerMode: 'click',
       targetLang: DEFAULT_TARGET_LANGUAGE,
-      floatingButtonVisible: true,
+      floatingButtonVisible: false,
       globalSettingsCollapsed: false
     })
   ])
@@ -360,7 +360,7 @@ async function loadData() {
   selectedTheme.value = meta.theme || 'system'
   selectedTriggerMode.value = meta.triggerMode || 'click'
   selectedTargetLang.value = normalizeLanguageValue(meta.targetLang, DEFAULT_TARGET_LANGUAGE)
-  selectedFloatingButtonVisible.value = meta.floatingButtonVisible !== false
+  selectedFloatingButtonVisible.value = Boolean(meta.floatingButtonVisible)
   globalSettingsCollapsed.value = Boolean(meta.globalSettingsCollapsed)
 }
 

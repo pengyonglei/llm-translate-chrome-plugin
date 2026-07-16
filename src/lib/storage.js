@@ -9,7 +9,7 @@ const DEFAULTS = {
   theme: 'system',
   disableThinking: true,
   triggerMode: 'click',
-  floatingButtonVisible: true
+  floatingButtonVisible: false
 }
 
 const PROVIDER_DEFAULTS = {
