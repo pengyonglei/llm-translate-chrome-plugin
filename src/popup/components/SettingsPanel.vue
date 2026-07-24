@@ -239,7 +239,7 @@ const PROVIDER_NAMES = {
 
 const PROVIDER_DEFAULTS = {
   deepseek:   { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-v4-flash', locked: true },
-  bailian:    { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', locked: true },
+  bailian:    { baseUrl: 'https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', locked: false },
   volcengine: { baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', model: 'doubao-1-5-pro-32k-250115', locked: true },
   minimax:    { baseUrl: 'https://api.minimaxi.com/v1', model: 'MiniMax-M3', locked: true },
   zhipu:      { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.2', locked: true },

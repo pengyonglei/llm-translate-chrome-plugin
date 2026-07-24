@@ -877,7 +877,7 @@ function $(id) { return document.getElementById(id) }
 
 const TS_PROVIDER_DEFAULTS = {
   deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', locked: true },
-  bailian:  { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', locked: true },
+  bailian:  { baseUrl: 'https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', locked: false },
   zhipu:    { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.2', locked: true },
   openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', locked: false },
   ollama:   { baseUrl: 'http://localhost:11434/v1', model: 'llama3.1', locked: false }

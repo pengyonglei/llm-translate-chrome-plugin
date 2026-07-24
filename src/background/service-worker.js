@@ -2,7 +2,7 @@ const DNR_RULE_ID = 1001
 
 const PROVIDER_DEFAULTS = {
   deepseek:   { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', baseUrlLocked: true },
-  bailian:    { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', baseUrlLocked: true },
+  bailian:    { baseUrl: 'https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', baseUrlLocked: false },
   volcengine: { baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', model: 'doubao-1-5-pro-32k-250115', baseUrlLocked: true },
   minimax:    { baseUrl: 'https://api.minimaxi.com/v1', model: 'MiniMax-M3', baseUrlLocked: true },
   zhipu:      { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.2', baseUrlLocked: true },

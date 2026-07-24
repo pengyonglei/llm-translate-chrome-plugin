@@ -14,7 +14,7 @@ const DEFAULTS = {
 
 const PROVIDER_DEFAULTS = {
   deepseek:  { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', baseUrlLocked: true, apiKeyPlaceholder: 'sk-...' },
-  bailian:   { baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', baseUrlLocked: true, apiKeyPlaceholder: 'sk-...' },
+  bailian:   { baseUrl: 'https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', baseUrlLocked: false, apiKeyPlaceholder: 'sk-...' },
   volcengine:{ baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', model: 'doubao-1-5-pro-32k-250115', baseUrlLocked: true, apiKeyPlaceholder: '请输入火山方舟 API Key' },
   minimax:   { baseUrl: 'https://api.minimaxi.com/v1', model: 'MiniMax-M3', baseUrlLocked: true, apiKeyPlaceholder: '请输入 MiniMax API Key' },
   zhipu:     { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.2', baseUrlLocked: true, apiKeyPlaceholder: '请输入智谱 API Key' },
