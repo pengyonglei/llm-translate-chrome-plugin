@@ -1,16 +1,39 @@
 const DNR_RULE_ID = 1001
+const OPENCODE_PROVIDER = 'opencode-go'
+const OPENCODE_SESSION_KEY = 'opencodeSessionId'
+// OpenCode Go 网关要求客户端使用自定义 UA，不要用通用 SDK UA
+const OPENCODE_USER_AGENT = 'llm-translate-chrome-plugin/1.0'
+// 只有这些上游接受 thinking.type 关闭思考；GLM / Kimi / MiniMax 传了会被网关拒
+// （GLM、Kimi 是 thinking-only，返回 400；MiniMax 不识别该参数）。
+const OPENCODE_THINKING_MODELS = /^(?:deepseek|longcat|mimo|step)[-.]/i
+// Kimi 系模型不接受 temperature（models.dev 标记 temperature=false），传了直接 400。
+const OPENCODE_NO_TEMPERATURE_MODELS = /^kimi[-.]/i
 
 const PROVIDER_DEFAULTS = {
-  deepseek:   { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', baseUrlLocked: true },
-  bailian:    { baseUrl: 'https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', baseUrlLocked: false },
-  volcengine: { baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', model: 'doubao-1-5-pro-32k-250115', baseUrlLocked: true },
-  minimax:    { baseUrl: 'https://api.minimaxi.com/v1', model: 'MiniMax-M3', baseUrlLocked: true },
-  zhipu:      { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.2', baseUrlLocked: true },
-  openai:     { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', baseUrlLocked: false },
-  ollama:     { baseUrl: 'http://localhost:11434/v1', model: 'llama3.1', baseUrlLocked: false }
+  deepseek:       { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', baseUrlLocked: true },
+  'opencode-go':  { baseUrl: 'https://opencode.ai/inference/go/openai/v1', model: 'deepseek-v4.1-flash', baseUrlLocked: true },
+  bailian:        { baseUrl: 'https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', baseUrlLocked: false },
+  volcengine:     { baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', model: 'doubao-1-5-pro-32k-250115', baseUrlLocked: true },
+  minimax:        { baseUrl: 'https://api.minimaxi.com/v1', model: 'MiniMax-M3', baseUrlLocked: true },
+  zhipu:          { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.2', baseUrlLocked: true },
+  openai:         { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', baseUrlLocked: false },
+  ollama:         { baseUrl: 'http://localhost:11434/v1', model: 'llama3.1', baseUrlLocked: false }
 }
 
-// 用 declarativeNetRequest 移除内网 API 请求的 Origin 头，避免 403
+function isOpencodeHost(host) {
+  return host === 'opencode.ai' || host.endsWith('.opencode.ai')
+}
+
+// 用 declarativeNetRequest 移除内网 API 请求的 Origin 头，避免 403；
+// 访问 OpenCode Go 时额外覆盖 User-Agent（fetch 无法设置该头）。
+function buildRequestHeaderRules(host) {
+  const requestHeaders = [{ header: 'origin', operation: 'remove' }]
+  if (isOpencodeHost(host)) {
+    requestHeaders.push({ header: 'user-agent', operation: 'set', value: OPENCODE_USER_AGENT })
+  }
+  return requestHeaders
+}
+
 async function updateOriginRule(baseUrl) {
   if (!baseUrl) return
 
@@ -23,9 +46,7 @@ async function updateOriginRule(baseUrl) {
         priority: 1,
         action: {
           type: 'modifyHeaders',
-          requestHeaders: [
-            { header: 'origin', operation: 'remove' }
-          ]
+          requestHeaders: buildRequestHeaderRules(host)
         },
         condition: {
           urlFilter: `||${host}`,
@@ -36,6 +57,22 @@ async function updateOriginRule(baseUrl) {
   } catch (err) {
     console.warn('declarativeNetRequest 规则设置失败:', err.message)
   }
+}
+
+// OpenCode Go 要求每个会话带稳定的 x-opencode-session（缺失会 400），
+// 网关用它做路由与 prompt cache 命中，因此整个扩展复用同一个 UUID。
+let opencodeSessionId = ''
+
+async function getOpencodeSessionId() {
+  if (opencodeSessionId) return opencodeSessionId
+
+  const stored = await chrome.storage.local.get({ [OPENCODE_SESSION_KEY]: '' })
+  const saved = stored[OPENCODE_SESSION_KEY]
+  opencodeSessionId = saved || crypto.randomUUID()
+  if (!saved) {
+    await chrome.storage.local.set({ [OPENCODE_SESSION_KEY]: opencodeSessionId })
+  }
+  return opencodeSessionId
 }
 
 // 监听配置变化，动态更新规则
@@ -129,7 +166,7 @@ async function requestChatCompletion(systemPrompt, userPrompt, config) {
   const body = createChatCompletionBody(systemPrompt, userPrompt, config)
 
   return retryOperation(
-    () => fetchChatCompletion(url, body, apiKey),
+    () => fetchChatCompletion(url, body, config),
     REQUEST_RETRY_MAX,
     isRetryableApiError
   )
@@ -154,7 +191,7 @@ async function testModelConnection(config) {
   })
   try {
     const startTime = Date.now()
-    const content = await fetchChatCompletion(url, body, apiKey)
+    const content = await fetchChatCompletion(url, body, normalized)
     return {
       latencyMs: Date.now() - startTime,
       content
@@ -212,9 +249,31 @@ function applyProviderBodyOptions(body, config) {
     body.thinking = { type: disableThinking ? 'disabled' : 'adaptive' }
     body.reasoning_split = true
   }
+
+  // OpenCode Go：网关把请求透传给上游模型（DeepSeek 等默认开启思考链）。
+  // 只在模型确实支持时下发 disabled：GLM / Kimi 是 thinking-only，传了会 400。
+  if (provider === OPENCODE_PROVIDER) {
+    const model = config.model || ''
+    if (disableThinking && OPENCODE_THINKING_MODELS.test(model)) {
+      body.thinking = { type: 'disabled' }
+    }
+    if (OPENCODE_NO_TEMPERATURE_MODELS.test(model)) {
+      delete body.temperature
+    }
+  }
 }
 
-async function fetchChatCompletion(url, body, apiKey) {
+async function fetchChatCompletion(url, body, config) {
+  const { apiKey, provider } = config
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
+  }
+
+  if (provider === OPENCODE_PROVIDER) {
+    headers['x-opencode-session'] = await getOpencodeSessionId()
+  }
+
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
@@ -222,10 +281,7 @@ async function fetchChatCompletion(url, body, apiKey) {
   try {
     response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
-      },
+      headers,
       body: JSON.stringify(body),
       signal: controller.signal
     })

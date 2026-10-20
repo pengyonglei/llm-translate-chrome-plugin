@@ -871,16 +871,17 @@ function restoreBtnPosition() {
 
 // ====== 内联设置面板 ======
 
-const PROVIDER_NAMES = { deepseek: 'DeepSeek', bailian: '阿里云百炼', zhipu: '智谱 AI', openai: 'OpenAI', ollama: 'Ollama' }
+const PROVIDER_NAMES = { deepseek: 'DeepSeek', 'opencode-go': 'OpenCode Go', bailian: '阿里云百炼', zhipu: '智谱 AI', openai: 'OpenAI', ollama: 'Ollama' }
 
 function $(id) { return document.getElementById(id) }
 
 const TS_PROVIDER_DEFAULTS = {
-  deepseek: { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', locked: true },
-  bailian:  { baseUrl: 'https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', locked: false },
-  zhipu:    { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.2', locked: true },
-  openai:   { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', locked: false },
-  ollama:   { baseUrl: 'http://localhost:11434/v1', model: 'llama3.1', locked: false }
+  deepseek:      { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', locked: true },
+  'opencode-go': { baseUrl: 'https://opencode.ai/inference/go/openai/v1', model: 'deepseek-v4.1-flash', locked: true },
+  bailian:       { baseUrl: 'https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', locked: false },
+  zhipu:         { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.2', locked: true },
+  openai:        { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', locked: false },
+  ollama:        { baseUrl: 'http://localhost:11434/v1', model: 'llama3.1', locked: false }
 }
 const TS_DEFAULT_TARGET_LANGUAGE = '简体中文'
 
@@ -1027,6 +1028,7 @@ async function showSettingsPanel() {
           <label>LLM 提供商</label>
           <select id="ts-provider">
             <option value="deepseek">DeepSeek</option>
+            <option value="opencode-go">OpenCode Go</option>
             <option value="bailian">阿里云百炼</option>
             <option value="zhipu">智谱 AI</option>
             <option value="openai">OpenAI 兼容</option>

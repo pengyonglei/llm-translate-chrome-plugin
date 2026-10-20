@@ -229,6 +229,7 @@ import { getConfig, getPresets, setConfig } from '../../lib/storage.js'
 
 const PROVIDER_NAMES = {
   deepseek: 'DeepSeek',
+  'opencode-go': 'OpenCode Go',
   bailian: '阿里云百炼',
   volcengine: '火山方舟',
   minimax: 'MiniMax',
@@ -238,33 +239,44 @@ const PROVIDER_NAMES = {
 }
 
 const PROVIDER_DEFAULTS = {
-  deepseek:   { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-v4-flash', locked: true },
-  bailian:    { baseUrl: 'https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', locked: false },
-  volcengine: { baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', model: 'doubao-1-5-pro-32k-250115', locked: true },
-  minimax:    { baseUrl: 'https://api.minimaxi.com/v1', model: 'MiniMax-M3', locked: true },
-  zhipu:      { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.2', locked: true },
-  openai:     { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', locked: false },
-  ollama:     { baseUrl: 'http://localhost:11434/v1', model: 'qwen2.5', locked: false }
+  deepseek:      { baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-v4-flash', locked: true },
+  'opencode-go': { baseUrl: 'https://opencode.ai/inference/go/openai/v1', model: 'deepseek-v4.1-flash', locked: true },
+  bailian:       { baseUrl: 'https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1', model: 'qwen-turbo', locked: false },
+  volcengine:    { baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', model: 'doubao-1-5-pro-32k-250115', locked: true },
+  minimax:       { baseUrl: 'https://api.minimaxi.com/v1', model: 'MiniMax-M3', locked: true },
+  zhipu:         { baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.2', locked: true },
+  openai:        { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', locked: false },
+  ollama:        { baseUrl: 'http://localhost:11434/v1', model: 'qwen2.5', locked: false }
 }
 
 const PROVIDER_LOGOS = {
-  deepseek:   { icon: '/icons/llm-providers/deepseek-color.svg' },
-  bailian:    { icon: '/icons/llm-providers/bailian-color.svg' },
-  volcengine: { icon: '/icons/llm-providers/volcengine-color.svg' },
-  minimax:    { icon: '/icons/llm-providers/minimax-color.svg' },
-  zhipu:      { icon: '/icons/llm-providers/zhipu-color.svg' },
-  openai:     { icon: '/icons/llm-providers/openai.svg' },
-  ollama:     { icon: '/icons/llm-providers/ollama.svg' }
+  deepseek:      { icon: '/icons/llm-providers/deepseek-color.svg' },
+  'opencode-go': { icon: '/icons/llm-providers/opencode-go.svg' },
+  bailian:       { icon: '/icons/llm-providers/bailian-color.svg' },
+  volcengine:    { icon: '/icons/llm-providers/volcengine-color.svg' },
+  minimax:       { icon: '/icons/llm-providers/minimax-color.svg' },
+  zhipu:         { icon: '/icons/llm-providers/zhipu-color.svg' },
+  openai:        { icon: '/icons/llm-providers/openai.svg' },
+  ollama:        { icon: '/icons/llm-providers/ollama.svg' }
+}
+
+const API_KEY_PLACEHOLDERS = {
+  ollama: 'Ollama 通常无需填写',
+  zhipu: '请输入智谱 API Key',
+  volcengine: '请输入火山方舟 API Key',
+  minimax: '请输入 MiniMax API Key',
+  'opencode-go': 'oc_sk_... OpenCode Go 密钥'
 }
 
 const ALL_PROVIDER_OPTIONS = [
-  { value: 'deepseek',   label: 'DeepSeek',    group: 'providers' },
-  { value: 'bailian',    label: '阿里云百炼',  group: 'providers' },
-  { value: 'volcengine', label: '火山方舟',     group: 'providers' },
-  { value: 'minimax',    label: 'MiniMax',     group: 'providers' },
-  { value: 'zhipu',      label: '智谱 AI',     group: 'providers' },
-  { value: 'openai',     label: 'OpenAI 兼容', group: 'custom' },
-  { value: 'ollama',     label: 'Ollama',      group: 'custom' }
+  { value: 'deepseek',    label: 'DeepSeek',     group: 'providers' },
+  { value: 'opencode-go', label: 'OpenCode Go',  group: 'providers' },
+  { value: 'bailian',     label: '阿里云百炼',   group: 'providers' },
+  { value: 'volcengine',  label: '火山方舟',     group: 'providers' },
+  { value: 'minimax',     label: 'MiniMax',      group: 'providers' },
+  { value: 'zhipu',       label: '智谱 AI',      group: 'providers' },
+  { value: 'openai',      label: 'OpenAI 兼容',  group: 'custom' },
+  { value: 'ollama',      label: 'Ollama',       group: 'custom' }
 ]
 
 const providerProviders = ALL_PROVIDER_OPTIONS.filter(p => p.group === 'providers').map(p => ({
@@ -401,15 +413,7 @@ function updatePlaceholders(provider, resetValues = false) {
   isLocked.value = d.locked
   apiUrlPlaceholder.value = d.baseUrl
   modelPlaceholder.value = d.model
-  apiKeyPlaceholder.value = provider === 'ollama'
-    ? 'Ollama 通常无需填写'
-    : provider === 'zhipu'
-      ? '请输入智谱 API Key'
-      : provider === 'volcengine'
-        ? '请输入火山方舟 API Key'
-        : provider === 'minimax'
-          ? '请输入 MiniMax API Key'
-          : 'sk-...'
+  apiKeyPlaceholder.value = API_KEY_PLACEHOLDERS[provider] || 'sk-...'
   if (d.locked || resetValues) form.baseUrl = d.baseUrl
   if (resetValues) form.model = d.model
 }

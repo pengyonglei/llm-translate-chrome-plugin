@@ -13,7 +13,7 @@
 - **划词即译**：选中网页文本后点击图标或立即显示翻译结果。
 - **手动输入翻译**：在扩展弹窗中输入文本并翻译，支持 `Ctrl+Enter` 快捷键。
 - **网页翻译**：一键翻译当前网页，支持全文替换、原文对照和还原原始网页。
-- **多 LLM 提供商**：内置 DeepSeek、阿里云百炼、智谱 AI、OpenAI 兼容接口和 Ollama。
+- **多 LLM 提供商**：内置 DeepSeek、OpenCode Go、阿里云百炼、智谱 AI、OpenAI 兼容接口和 Ollama。
 - **可配置触发时机**：支持“点击图标时翻译”“选中后立即翻译”和“不翻译”三种模式。
 - **浅色 / 深色主题**：支持跟随系统、浅色、深色三种主题。
 - **配置预设**：保存多组 API 配置，按需快速切换。
@@ -54,7 +54,7 @@
 
 | 配置项 | 说明 |
 |---|---|
-| **LLM 提供商** | DeepSeek / 阿里云百炼 / 智谱 AI / OpenAI 兼容 / Ollama |
+| **LLM 提供商** | DeepSeek / OpenCode Go / 阿里云百炼 / 智谱 AI / OpenAI 兼容 / Ollama |
 | **API Key** | 对应提供商的 API 密钥 |
 | **API 端点** | 自动填充，OpenAI 兼容模式下可自定义 |
 | **模型** | 选择使用的模型 |
@@ -83,12 +83,25 @@
 | 提供商 | 默认模型 | 是否锁定 API 端点 |
 |---|---|---|
 | **DeepSeek** | `deepseek-chat` | 是 |
+| **OpenCode Go** | `deepseek-v4.1-flash` | 是 |
 | **阿里云百炼** | `qwen-turbo` | 是 |
 | **智谱 AI** | `glm-5.2` | 是 |
 | **OpenAI 兼容** | `gpt-4o-mini` | 否，可自定义 |
 | **Ollama** | `llama3.1` | 否，可自定义 |
 
 OpenAI 兼容模式和 Ollama 模式都使用 OpenAI-compatible 接口。内网 Ollama 地址需要填到 `/v1`，例如 `http://192.168.1.10:11434/v1`。
+
+### OpenCode Go
+
+OpenCode Go 是 OpenCode 的订阅制推理网关，仅支持单成员 workspace，按模型分配月度美元额度（Go $10/月、Go Plus $40/月），Go 的 Key 只能访问 `/inference/go/*` 路由。
+
+- 在 [OpenCode Console](https://opencode.ai/console) 订阅后到 **Keys** 生成 API Key（形如 `oc_sk_...`），填到「API Key」即可。
+- 插件固定使用 OpenAI Chat Completions 路由 `https://opencode.ai/inference/go/openai/v1`，因此可选模型为 GLM、Kimi、DeepSeek、MiMo、LongCat、Step、MiniMax 等；Claude / Qwen / Gemini 需要 Anthropic 或 Gemini 原生路由，当前版本不支持。
+- 网关强制要求 `x-opencode-session` 请求头：插件首次调用时生成一个 UUID 存入 `chrome.storage.local`（`opencodeSessionId`），后续请求复用，便于网关路由和 prompt cache 命中。
+- 网关要求客户端使用自定义 User-Agent，浏览器 `fetch` 无法设置该头，插件通过 `declarativeNetRequest` 对 `opencode.ai` 的请求注入 `User-Agent: llm-translate-chrome-plugin/1.0`。
+- 「禁用深度思考模式」只对支持思考开关的模型生效：DeepSeek、LongCat、MiMo、Step 系会下发 `thinking: { type: "disabled" }`；GLM、Kimi 是 thinking-only 模型，关闭思考的请求会被网关以 400 拒绝，MiniMax 不识别该参数，插件对这些模型自动跳过。Kimi 系模型还不接受 `temperature`，插件会自动省略该字段。
+- 实测（2026-10，deepseek-v4.1-flash）：关闭思考时 `reasoning_tokens = 0`，同一句翻译约 1.7–2.2 秒；不关闭时思考 token 为 59–175，耗时 2.2–7 秒。网关本身的基础延迟不低（仅 `GET /v1/models` 约 0.8 秒），且请求为非流式，所以体感延迟主要来自网关到上游模型的路由与排队。
+- 额度查询、模型列表不在插件内提供，可用 `curl https://opencode.ai/inference/go/v1/models` 查看实时模型，或参考 Console 页面。
 
 ## 项目结构
 
